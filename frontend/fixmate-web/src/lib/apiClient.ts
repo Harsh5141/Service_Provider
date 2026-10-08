@@ -1,8 +1,10 @@
 import axios from 'axios'
 import type { Store } from '@reduxjs/toolkit'
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
 })
@@ -55,7 +57,7 @@ export const setupInterceptors = (store: Store) => {
 
         try {
           // Use raw axios instance to prevent recursive interceptor loops
-          const res = await axios.post('/api/auth/refresh', {}, { withCredentials: true })
+          const res = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, { withCredentials: true })
           const { user, accessToken } = res.data.data
 
           store.dispatch({
