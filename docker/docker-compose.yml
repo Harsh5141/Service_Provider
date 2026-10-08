@@ -1,0 +1,58 @@
+version: '3.9'
+
+services:
+  # ── SQL Server 2022 ──────────────────────────────────────────────────────────
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: fixmate-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "FixMate_Dev_2024!"   # Change in production; matches API connection string
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P FixMate_Dev_2024! -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  # ── .NET 8 API ───────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ../backend
+      dockerfile: FixMate.API/Dockerfile
+    container_name: fixmate-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: >
+        Server=sqlserver;Database=FixMateDb;User Id=sa;
+        Password=FixMate_Dev_2024!;TrustServerCertificate=True;MultipleActiveResultSets=true
+      # All other secrets come from a .env file or Docker secrets in production
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── React Frontend ───────────────────────────────────────────────────────────
+  web:
+    build:
+      context: ../frontend/fixmate-web
+      dockerfile: Dockerfile
+    container_name: fixmate-web
+    ports:
+      - "3000:80"   # Nginx serves the built React app on port 80 inside
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  sqlserver_data:

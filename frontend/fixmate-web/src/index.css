@@ -1,0 +1,110 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-primary: theme('colors.primary.DEFAULT');
+    color-scheme: light;
+  }
+
+  html {
+    @apply scroll-smooth;
+    color-scheme: light;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900 antialiased font-sans;
+    color-scheme: light;
+    color: #111827;
+  }
+
+  /* Universal high-contrast form control readability */
+  input, textarea, select {
+    color: #111827;
+    background-color: #ffffff;
+    color-scheme: light;
+  }
+
+  select option, select optgroup {
+    color: #111827 !important;
+    background-color: #ffffff !important;
+  }
+
+  input::placeholder, textarea::placeholder {
+    color: #9ca3af !important;
+    opacity: 1;
+  }
+
+  input:disabled, textarea:disabled, select:disabled {
+    color: #374151 !important;
+    background-color: #f9fafb !important;
+  }
+
+  /* Support dark-styled auth / landing containers */
+  .bg-slate-900 input:not(.bg-white):not([type="checkbox"]),
+  .bg-slate-900 textarea:not(.bg-white),
+  .bg-slate-900 select:not(.bg-white),
+  .bg-slate-800 input:not(.bg-white):not([type="checkbox"]),
+  .bg-slate-800 textarea:not(.bg-white),
+  .bg-slate-800 select:not(.bg-white) {
+    color: #f8fafc !important;
+    background-color: rgb(15 23 42 / 0.8) !important;
+    color-scheme: dark;
+  }
+
+  .bg-slate-900 select option,
+  .bg-slate-800 select option {
+    color: #f8fafc !important;
+    background-color: #0f172a !important;
+  }
+
+  /* Consistent focus ring across all interactive elements */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-primary ring-offset-2;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5
+           text-sm font-semibold text-white shadow-sm transition-colors
+           hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300
+           bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm
+           transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-danger px-4 py-2.5
+           text-sm font-semibold text-white shadow-sm transition-colors
+           hover:bg-danger-light disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .input-field {
+    @apply block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm
+           text-gray-900 placeholder-gray-400 shadow-sm transition
+           focus:border-primary focus:ring-1 focus:ring-primary;
+  }
+
+  .input-error {
+    @apply border-danger focus:border-danger focus:ring-danger;
+  }
+
+  .card {
+    @apply rounded-xl border border-gray-200 bg-white p-6 shadow-sm;
+  }
+
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+
+  .badge-success { @apply badge bg-green-100 text-green-800; }
+  .badge-warning { @apply badge bg-yellow-100 text-yellow-800; }
+  .badge-danger  { @apply badge bg-red-100 text-red-800; }
+  .badge-info    { @apply badge bg-blue-100 text-blue-800; }
+  .badge-gray    { @apply badge bg-gray-100 text-gray-800; }
+}

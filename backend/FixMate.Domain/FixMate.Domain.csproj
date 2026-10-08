@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>FixMate.Domain</RootNamespace>
+  </PropertyGroup>
+
+  <!-- Domain has ZERO external NuGet dependencies by design.
+       It contains only entities, enums, and domain exceptions. -->
+
+</Project>
