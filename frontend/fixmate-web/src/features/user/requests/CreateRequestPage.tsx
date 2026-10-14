@@ -186,11 +186,13 @@ export default function CreateRequestPage() {
         }
 
         // Pre-select via URL params
+        let preselected = false
         if (queryServiceId && loadedServices.length > 0) {
           const matchedSvc = loadedServices.find((s) => s.id === queryServiceId)
           if (matchedSvc) {
             setSelectedService(matchedSvc)
             setSelectedCategoryId(matchedSvc.categoryId)
+            preselected = true
           }
         } else if (queryCategoryId) {
           setSelectedCategoryId(queryCategoryId)
@@ -201,7 +203,19 @@ export default function CreateRequestPage() {
           if (matchedProv) {
             setPreferredProvider(matchedProv)
             setSelectedCategoryId(matchedProv.categoryId)
+            // Auto-select first matching service for provider's category if none chosen
+            if (!queryServiceId) {
+              const catSvc = loadedServices.find((s) => s.categoryId === matchedProv.categoryId)
+              if (catSvc) {
+                setSelectedService(catSvc)
+              }
+            }
+            preselected = true
           }
+        }
+
+        if (preselected) {
+          setStep(2)
         }
       } catch (err) {
         console.error('Failed to load booking data', err)

@@ -1,14 +1,17 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Zap,
-  Droplet,
+  Droplets,
   Wind,
   Sparkles,
   Tv,
-  Wifi,
-  Car,
   Paintbrush,
+  Hammer,
+  ShieldAlert,
+  Flame,
+  Camera,
+  Wrench,
   ShieldCheck,
   Clock,
   CreditCard,
@@ -19,95 +22,122 @@ import {
   Cpu,
   BadgeCheck,
   BellRing,
-  ChevronDown
+  ChevronDown,
+  Loader2,
+  X,
+  Lock
 } from 'lucide-react'
+import api from '@/lib/apiClient'
+import { useAppSelector } from '@/hooks/useAppSelector'
 
-interface ServiceCategoryCard {
-  id: string
+interface ServiceItem {
+  id: number
+  categoryId: number
+  categoryName?: string
   name: string
-  tagline: string
-  icon: any
-  startingPrice: number
-  color: string
-  bgLight: string
-  badge?: string
+  description: string
+  basePrice: number
+  estimatedDurationMinutes: number
 }
 
-const CATEGORIES: ServiceCategoryCard[] = [
-  {
-    id: 'ac-repair',
-    name: 'AC Repair & Service',
-    tagline: 'Deep foam cleaning, gas top-up, wiring fix',
+interface ServiceCategoryDto {
+  id: number
+  name: string
+  slug: string
+  description: string
+  iconName?: string
+  displayOrder: number
+  isActive: boolean
+  services: ServiceItem[]
+}
+
+interface PublicProviderDto {
+  id: number
+  userId: number
+  name: string
+  email: string
+  phone: string
+  bio: string
+  specialization?: string
+  experienceYears: number
+  serviceRadiusKm: number
+  street?: string
+  city: string
+  state?: string
+  postalCode: string
+  ratingAverage: number
+  ratingCount: number
+  completedJobsCount?: number
+  isAvailable: boolean
+  skills: string[]
+  categoryNames?: string[]
+  categoryId: number
+}
+
+const CATEGORY_STYLE_MAP: Record<string, { icon: any; color: string; bgLight: string; badge?: string }> = {
+  'Electrical & Power Solutions': {
+    icon: Zap,
+    color: 'text-amber-600',
+    bgLight: 'bg-amber-50 border-amber-200/60 hover:border-amber-300'
+  },
+  'Plumbing & Sanitary Works': {
+    icon: Droplets,
+    color: 'text-blue-600',
+    bgLight: 'bg-blue-50 border-blue-200/60 hover:border-blue-300'
+  },
+  'AC & HVAC Cooling Services': {
     icon: Wind,
-    startingPrice: 499,
     color: 'text-cyan-600',
     bgLight: 'bg-cyan-50 border-cyan-200/60 hover:border-cyan-300',
     badge: 'Most Popular'
   },
-  {
-    id: 'electrical',
-    name: 'Electrician & Wiring',
-    tagline: 'Switchboards, MCB repair, fan install',
-    icon: Zap,
-    startingPrice: 199,
-    color: 'text-amber-600',
-    bgLight: 'bg-amber-50 border-amber-200/60 hover:border-amber-300'
+  'Home Appliance Repair': {
+    icon: Tv,
+    color: 'text-indigo-600',
+    bgLight: 'bg-indigo-50 border-indigo-200/60 hover:border-indigo-300'
   },
-  {
-    id: 'plumbing',
-    name: 'Plumbing & Pipe Leakage',
-    tagline: 'Tap repair, pipeline blockage, motor check',
-    icon: Droplet,
-    startingPrice: 249,
-    color: 'text-blue-600',
-    bgLight: 'bg-blue-50 border-blue-200/60 hover:border-blue-300'
-  },
-  {
-    id: 'cleaning',
-    name: 'Home Deep Cleaning',
-    tagline: 'Kitchen, bathroom, sofa & carpet shampooing',
+  'Deep Cleaning & Sanitization': {
     icon: Sparkles,
-    startingPrice: 799,
     color: 'text-emerald-600',
     bgLight: 'bg-emerald-50 border-emerald-200/60 hover:border-emerald-300',
     badge: '30% Off'
   },
-  {
-    id: 'appliances',
-    name: 'Appliance Repair',
-    tagline: 'Washing machine, refrigerator, microwave, RO',
-    icon: Tv,
-    startingPrice: 349,
-    color: 'text-indigo-600',
-    bgLight: 'bg-indigo-50 border-indigo-200/60 hover:border-indigo-300'
+  'Carpentry & Furniture Assembly': {
+    icon: Hammer,
+    color: 'text-orange-600',
+    bgLight: 'bg-orange-50 border-orange-200/60 hover:border-orange-300'
   },
-  {
-    id: 'internet',
-    name: 'Internet & Networking',
-    tagline: 'Wi-Fi mesh setup, router config, LAN wiring',
-    icon: Wifi,
-    startingPrice: 299,
-    color: 'text-purple-600',
-    bgLight: 'bg-purple-50 border-purple-200/60 hover:border-purple-300'
-  },
-  {
-    id: 'painting',
-    name: 'Painting & Waterproofing',
-    tagline: 'Interior wall paint, damp proofing, touch-ups',
+  'Painting & Wall Waterproofing': {
     icon: Paintbrush,
-    startingPrice: 999,
     color: 'text-rose-600',
     bgLight: 'bg-rose-50 border-rose-200/60 hover:border-rose-300'
   },
-  {
-    id: 'vehicle',
-    name: 'Doorstep Vehicle Care',
-    tagline: 'Bike general service, car wash & battery jump',
-    icon: Car,
-    startingPrice: 449,
-    color: 'text-orange-600',
-    bgLight: 'bg-orange-50 border-orange-200/60 hover:border-orange-300'
+  'Pest Control & Disinfection': {
+    icon: ShieldAlert,
+    color: 'text-red-600',
+    bgLight: 'bg-red-50 border-red-200/60 hover:border-red-300'
+  },
+  'RO Water Purifier & Geyser Care': {
+    icon: Flame,
+    color: 'text-teal-600',
+    bgLight: 'bg-teal-50 border-teal-200/60 hover:border-teal-300'
+  },
+  'Smart Home & CCTV Security': {
+    icon: Camera,
+    color: 'text-purple-600',
+    bgLight: 'bg-purple-50 border-purple-200/60 hover:border-purple-300'
   }
+}
+
+const FALLBACK_CATEGORIES = [
+  { id: 6, name: 'AC & HVAC Cooling Services', startingPrice: 499, description: 'Split & window air conditioner maintenance, gas charging, coil cleaning & PCB repairs' },
+  { id: 1, name: 'Electrical & Power Solutions', startingPrice: 199, description: 'Switchboard fixes, MCB fuses, ceiling fans, home wiring, and inverter installations' },
+  { id: 2, name: 'Plumbing & Sanitary Works', startingPrice: 249, description: 'Pipe leakages, tap fittings, drain blockages, water motors, and bathroom cisterns' },
+  { id: 8, name: 'Deep Cleaning & Sanitization', startingPrice: 799, description: 'Intense bathroom descaling, sofa fabric shampooing, kitchen degreasing, and full home deep clean' },
+  { id: 7, name: 'Home Appliance Repair', startingPrice: 349, description: 'Front/top load washing machines, refrigerators, microwaves, and induction cooktops' },
+  { id: 13, name: 'Smart Home & CCTV Security', startingPrice: 299, description: 'CCTV camera setup, smart video doorbells, smart locks, Wi-Fi mesh configuration, and sensors' },
+  { id: 10, name: 'Painting & Wall Waterproofing', startingPrice: 999, description: 'Interior room wall painting, dampness proofing, texture finishes, and ceiling touch-ups' },
+  { id: 9, name: 'Carpentry & Furniture Assembly', startingPrice: 249, description: 'Wooden doors, locks, hinges, modular furniture setup, cabinet fittings, and custom shelves' }
 ]
 
 const TESTIMONIALS = [
@@ -158,17 +188,154 @@ const FAQS = [
 
 export default function LandingPage() {
   const [searchQuery, setSearchQuery] = useState('')
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [openFaq, setOpenFaq] = useState<number | null>(0)
-  const navigate = useNavigate()
+  
+  // Real database states
+  const [categories, setCategories] = useState<ServiceCategoryDto[]>([])
+  const [services, setServices] = useState<ServiceItem[]>([])
+  const [providers, setProviders] = useState<PublicProviderDto[]>([])
+  const [loadingData, setLoadingData] = useState(true)
+  const [dataError, setDataError] = useState<string | null>(null)
 
-  const filteredCategories = CATEGORIES.filter(c =>
-    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.tagline.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  // Public Guest Details Modal
+  const [guestModalItem, setGuestModalItem] = useState<{
+    type: 'SERVICE' | 'PROVIDER'
+    service?: ServiceItem
+    provider?: PublicProviderDto
+    categoryName?: string
+  } | null>(null)
+
+  const { isAuthenticated } = useAppSelector((s) => s.auth)
+  const navigate = useNavigate()
+  const searchContainerRef = useRef<HTMLDivElement>(null)
+
+  // Fetch real database data on landing page mount
+  useEffect(() => {
+    let isMounted = true
+    async function loadData() {
+      setLoadingData(true)
+      setDataError(null)
+      try {
+        const [catsRes, svcsRes, provsRes] = await Promise.allSettled([
+          api.get('/services/categories'),
+          api.get('/services'),
+          api.get('/services/providers')
+        ])
+
+        if (!isMounted) return
+
+        if (catsRes.status === 'fulfilled' && catsRes.value.data?.data) {
+          setCategories(catsRes.value.data.data)
+        }
+        if (svcsRes.status === 'fulfilled' && svcsRes.value.data?.data) {
+          setServices(svcsRes.value.data.data)
+        }
+        if (provsRes.status === 'fulfilled' && provsRes.value.data?.data) {
+          setProviders(provsRes.value.data.data)
+        }
+      } catch (err: any) {
+        if (isMounted) {
+          setDataError('Unable to load some real-time services. Showing available local network.')
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingData(false)
+        }
+      }
+    }
+
+    loadData()
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  // Close search popup when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setIsSearchOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
+
+  // Search Results Filtering across 3 domains: Services, Categories, Providers
+  const trimmedQuery = searchQuery.trim().toLowerCase()
+
+  const matchingServices = trimmedQuery && services.length > 0
+    ? services.filter(
+        (s) =>
+          s.name.toLowerCase().includes(trimmedQuery) ||
+          s.description.toLowerCase().includes(trimmedQuery) ||
+          (s.categoryName && s.categoryName.toLowerCase().includes(trimmedQuery))
+      )
+    : []
+
+  const matchingCategories = trimmedQuery && categories.length > 0
+    ? categories.filter(
+        (c) =>
+          c.name.toLowerCase().includes(trimmedQuery) ||
+          c.description.toLowerCase().includes(trimmedQuery)
+      )
+    : []
+
+  const matchingProviders = trimmedQuery && providers.length > 0
+    ? providers.filter(
+        (p) =>
+          p.name.toLowerCase().includes(trimmedQuery) ||
+          p.bio.toLowerCase().includes(trimmedQuery) ||
+          (p.specialization && p.specialization.toLowerCase().includes(trimmedQuery)) ||
+          (p.skills && p.skills.some((sk) => sk.toLowerCase().includes(trimmedQuery)))
+      )
+    : []
+
+  const hasSearchResults = matchingServices.length > 0 || matchingCategories.length > 0 || matchingProviders.length > 0
+
+  // Auth-aware Navigation Handlers
+  const handleProceedToBooking = (params: { serviceId?: number; categoryId?: number; providerId?: number }) => {
+    const searchParams = new URLSearchParams()
+    if (params.serviceId) searchParams.set('serviceId', params.serviceId.toString())
+    if (params.categoryId) searchParams.set('categoryId', params.categoryId.toString())
+    if (params.providerId) searchParams.set('providerId', params.providerId.toString())
+
+    const bookingTargetUrl = `/requests/new?${searchParams.toString()}`
+
+    if (isAuthenticated) {
+      navigate(bookingTargetUrl)
+    } else {
+      // Redirect to login while remembering destination URL
+      navigate('/login', { state: { from: bookingTargetUrl } })
+    }
+  }
+
+  const handleOpenGuestServiceDetails = (service: ServiceItem) => {
+    setIsSearchOpen(false)
+    setGuestModalItem({
+      type: 'SERVICE',
+      service,
+      categoryName: service.categoryName || categories.find((c) => c.id === service.categoryId)?.name
+    })
+  }
+
+  const handleOpenGuestProviderDetails = (provider: PublicProviderDto) => {
+    setIsSearchOpen(false)
+    setGuestModalItem({
+      type: 'PROVIDER',
+      provider,
+      categoryName: provider.categoryNames?.[0] || categories.find((c) => c.id === provider.categoryId)?.name
+    })
+  }
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    navigate(`/register?search=${encodeURIComponent(searchQuery)}`)
+    if (trimmedQuery) {
+      setIsSearchOpen(true)
+    }
   }
 
   return (
@@ -196,29 +363,190 @@ export default function LandingPage() {
             Instant booking for electrical, plumbing, AC repair, home deep cleaning, and appliance servicing. Live real-time technician tracking with guaranteed upfront pricing.
           </p>
 
-          {/* Search Bar */}
-          <form
-            onSubmit={handleSearchSubmit}
-            className="mx-auto mt-8 flex max-w-2xl items-center rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-blue-900/5 focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/10 transition-all"
-          >
-            <div className="flex items-center pl-3 text-slate-400">
-              <Search className="h-5 w-5" />
-            </div>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search for 'AC service', 'Tap leakage', 'Deep cleaning'..."
-              className="w-full border-0 bg-transparent px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0 sm:text-base"
-            />
-            <button
-              type="submit"
-              className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-md shadow-blue-600/30 hover:bg-blue-700 transition-all flex items-center gap-1.5 shrink-0"
+          {/* Search Bar Container */}
+          <div ref={searchContainerRef} className="relative mx-auto mt-8 max-w-2xl">
+            <form
+              onSubmit={handleSearchSubmit}
+              className="flex items-center rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-blue-900/5 focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/10 transition-all"
             >
-              <span>Search</span>
-              <ArrowRight className="h-4 w-4" />
-            </button>
-          </form>
+              <div className="flex items-center pl-3 text-slate-400">
+                <Search className="h-5 w-5" />
+              </div>
+              <input
+                type="text"
+                value={searchQuery}
+                onFocus={() => {
+                  if (searchQuery.trim()) setIsSearchOpen(true)
+                }}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value)
+                  setIsSearchOpen(true)
+                }}
+                placeholder="Search for 'AC service', 'Tap leakage', 'Deep cleaning' or provider name..."
+                className="w-full border-0 bg-transparent px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0 sm:text-base"
+              />
+              {loadingData && (
+                <div className="mr-2 text-blue-500 animate-spin">
+                  <Loader2 className="h-4 w-4" />
+                </div>
+              )}
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('')
+                    setIsSearchOpen(false)
+                  }}
+                  className="mr-2 text-xs font-semibold text-slate-400 hover:text-slate-600 px-2 py-1"
+                >
+                  Clear
+                </button>
+              )}
+              <button
+                type="submit"
+                className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-md shadow-blue-600/30 hover:bg-blue-700 transition-all flex items-center gap-1.5 shrink-0"
+              >
+                <span>Search</span>
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </form>
+
+            {/* Live Search Results Dropdown Overlay */}
+            {isSearchOpen && trimmedQuery && (
+              <div className="absolute left-0 right-0 top-full mt-2 z-50 rounded-2xl border border-slate-200 bg-white shadow-2xl p-4 max-h-[460px] overflow-y-auto text-left space-y-4 animate-in fade-in slide-in-from-top-2 duration-150">
+                {loadingData ? (
+                  <div className="flex items-center justify-center py-8 text-slate-500 text-sm gap-2">
+                    <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                    <span>Searching database...</span>
+                  </div>
+                ) : !hasSearchResults ? (
+                  <div className="py-6 text-center text-sm text-slate-500">
+                    <p className="font-semibold text-slate-700">No results found for &ldquo;{searchQuery}&rdquo;</p>
+                    <p className="text-xs text-slate-400 mt-1">Try searching for AC, Electrician, Tap, Plumber, or Technician names.</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* 1. Matching Services */}
+                    {matchingServices.length > 0 && (
+                      <div>
+                        <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 mb-2">
+                          <span className="text-xs font-extrabold uppercase tracking-wider text-blue-600 flex items-center gap-1.5">
+                            <Wrench className="h-3.5 w-3.5" />
+                            Matching Services ({matchingServices.length})
+                          </span>
+                        </div>
+                        <div className="space-y-1.5">
+                          {matchingServices.slice(0, 5).map((svc) => (
+                            <div
+                              key={svc.id}
+                              onClick={() => handleOpenGuestServiceDetails(svc)}
+                              className="group flex items-center justify-between p-2.5 rounded-xl hover:bg-blue-50/80 cursor-pointer transition border border-transparent hover:border-blue-100"
+                            >
+                              <div className="min-w-0 pr-3">
+                                <p className="text-sm font-bold text-slate-900 group-hover:text-blue-600 truncate">
+                                  {svc.name}
+                                </p>
+                                <p className="text-xs text-slate-500 truncate">
+                                  {svc.categoryName || 'Service'} &bull; ~{svc.estimatedDurationMinutes} mins
+                                </p>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <span className="font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg text-xs">
+                                  &#8377;{svc.basePrice}
+                                </span>
+                                <span className="block text-[10px] text-blue-600 font-semibold mt-0.5 group-hover:underline">
+                                  View Details &rarr;
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 2. Matching Categories */}
+                    {matchingCategories.length > 0 && (
+                      <div>
+                        <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 mb-2">
+                          <span className="text-xs font-extrabold uppercase tracking-wider text-indigo-600 flex items-center gap-1.5">
+                            <Sparkles className="h-3.5 w-3.5" />
+                            Matching Categories ({matchingCategories.length})
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {matchingCategories.map((cat) => (
+                            <button
+                              key={cat.id}
+                              onClick={() => {
+                                setIsSearchOpen(false)
+                                handleProceedToBooking({ categoryId: cat.id })
+                              }}
+                              className="flex items-center justify-between p-2.5 rounded-xl border border-slate-200/80 hover:border-indigo-400 hover:bg-indigo-50/60 text-left transition"
+                            >
+                              <div>
+                                <p className="text-xs font-bold text-slate-900">{cat.name}</p>
+                                <p className="text-[11px] text-slate-500 line-clamp-1">{cat.description}</p>
+                              </div>
+                              <ArrowRight className="h-3.5 w-3.5 text-indigo-500 shrink-0 ml-2" />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 3. Matching Providers */}
+                    {matchingProviders.length > 0 && (
+                      <div>
+                        <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 mb-2">
+                          <span className="text-xs font-extrabold uppercase tracking-wider text-emerald-700 flex items-center gap-1.5">
+                            <BadgeCheck className="h-3.5 w-3.5 text-emerald-600" />
+                            Available Service Providers ({matchingProviders.length})
+                          </span>
+                        </div>
+                        <div className="space-y-1.5">
+                          {matchingProviders.slice(0, 4).map((prov) => (
+                            <div
+                              key={prov.id}
+                              onClick={() => handleOpenGuestProviderDetails(prov)}
+                              className="group flex items-center justify-between p-2.5 rounded-xl hover:bg-emerald-50/60 cursor-pointer transition border border-transparent hover:border-emerald-100"
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0 pr-3">
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-extrabold text-xs">
+                                  {prov.name.substring(0, 2).toUpperCase()}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <p className="text-sm font-bold text-slate-900 group-hover:text-emerald-700 truncate">
+                                      {prov.name}
+                                    </p>
+                                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded">
+                                      Verified
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-slate-500 truncate">
+                                    {prov.specialization || prov.city} &bull; {prov.experienceYears}+ yrs exp
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
+                                  <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                                  {prov.ratingAverage?.toFixed(1) || '4.9'}
+                                </span>
+                                <span className="block text-[10px] text-emerald-600 font-semibold mt-0.5 group-hover:underline">
+                                  Profile &rarr;
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Quick Category Chips */}
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs text-slate-500">
@@ -226,7 +554,10 @@ export default function LandingPage() {
             {['AC Service', 'Electrician', 'Plumber', 'Sofa Clean', 'Washing Machine'].map((chip) => (
               <button
                 key={chip}
-                onClick={() => setSearchQuery(chip)}
+                onClick={() => {
+                  setSearchQuery(chip)
+                  setIsSearchOpen(true)
+                }}
                 className="rounded-lg bg-white/90 border border-slate-200 px-2.5 py-1 font-medium hover:border-blue-400 hover:text-blue-600 transition-colors"
               >
                 {chip}
@@ -280,22 +611,39 @@ export default function LandingPage() {
           </p>
         </div>
 
+        {dataError && (
+          <div className="mt-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 text-center max-w-xl mx-auto">
+            {dataError}
+          </div>
+        )}
+
         <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {filteredCategories.map((cat) => {
-            const Icon = cat.icon
+          {(categories.length > 0 ? categories : FALLBACK_CATEGORIES).map((cat: any) => {
+            const style = CATEGORY_STYLE_MAP[cat.name] || {
+              icon: Wrench,
+              color: 'text-blue-600',
+              bgLight: 'bg-blue-50 border-blue-200/60 hover:border-blue-300'
+            }
+            const Icon = style.icon
+            const startPrice = cat.services && cat.services.length > 0
+              ? Math.min(...cat.services.map((s: any) => s.basePrice))
+              : cat.startingPrice || 249
+
+            const firstService = cat.services && cat.services[0]
+
             return (
               <div
                 key={cat.id}
-                className={`group relative flex flex-col justify-between rounded-2xl border p-6 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-xl ${cat.bgLight}`}
+                className={`group relative flex flex-col justify-between rounded-2xl border p-6 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-xl ${style.bgLight}`}
               >
-                {cat.badge && (
+                {style.badge && (
                   <span className="absolute -top-3 right-4 rounded-full bg-blue-600 px-3 py-0.5 text-[11px] font-bold text-white shadow-sm">
-                    {cat.badge}
+                    {style.badge}
                   </span>
                 )}
 
                 <div>
-                  <div className={`flex h-12 w-12 items-center justify-center rounded-xl bg-white shadow-md group-hover:scale-110 transition-transform ${cat.color}`}>
+                  <div className={`flex h-12 w-12 items-center justify-center rounded-xl bg-white shadow-md group-hover:scale-110 transition-transform ${style.color}`}>
                     <Icon className="h-6 w-6" />
                   </div>
 
@@ -303,28 +651,223 @@ export default function LandingPage() {
                     {cat.name}
                   </h3>
                   <p className="mt-1.5 text-xs text-slate-600 leading-relaxed">
-                    {cat.tagline}
+                    {cat.description}
                   </p>
                 </div>
 
                 <div className="mt-6 flex items-center justify-between border-t border-slate-200/60 pt-4">
                   <div>
                     <span className="text-[10px] uppercase font-semibold text-slate-400">Starts at</span>
-                    <div className="text-base font-extrabold text-slate-900">&#8377;{cat.startingPrice}</div>
+                    <div className="text-base font-extrabold text-slate-900">&#8377;{startPrice}</div>
                   </div>
-                  <Link
-                    to="/register"
-                    className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 group-hover:text-blue-700 group-hover:translate-x-0.5 transition-all"
-                  >
-                    <span>Book Now</span>
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </Link>
+
+                  <div className="flex items-center gap-2">
+                    {firstService && (
+                      <button
+                        onClick={() => handleOpenGuestServiceDetails(firstService)}
+                        className="text-xs font-semibold text-slate-600 hover:text-slate-900 px-2 py-1"
+                      >
+                        Details
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleProceedToBooking({ categoryId: cat.id, serviceId: firstService?.id })}
+                      className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 group-hover:text-blue-700 group-hover:translate-x-0.5 transition-all cursor-pointer"
+                    >
+                      <span>Book Now</span>
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             )
           })}
         </div>
       </section>
+
+      {/* ── Public Service / Provider Details Modal (Guest Friendly) ───────────────────────── */}
+      {guestModalItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-2xl space-y-6">
+            <button
+              onClick={() => setGuestModalItem(null)}
+              className="absolute right-5 top-5 rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            {guestModalItem.type === 'SERVICE' && guestModalItem.service && (
+              <div className="space-y-5">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-100 text-blue-600">
+                    <Wrench className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-bold text-blue-700 border border-blue-200">
+                      {guestModalItem.categoryName || 'Service Package'}
+                    </span>
+                    <h3 className="text-xl font-extrabold text-slate-900 mt-1">
+                      {guestModalItem.service.name}
+                    </h3>
+                  </div>
+                </div>
+
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  {guestModalItem.service.description}
+                </p>
+
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="rounded-xl bg-slate-50 p-3 border border-slate-200">
+                    <span className="text-slate-400 block font-semibold">Fixed Base Rate</span>
+                    <span className="text-lg font-black text-emerald-600">
+                      &#8377;{guestModalItem.service.basePrice}
+                    </span>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-3 border border-slate-200">
+                    <span className="text-slate-400 block font-semibold">Estimated Time</span>
+                    <span className="text-sm font-bold text-slate-800 flex items-center gap-1 mt-1">
+                      <Clock className="h-3.5 w-3.5 text-slate-500" />
+                      ~{guestModalItem.service.estimatedDurationMinutes} Minutes
+                    </span>
+                  </div>
+                </div>
+
+                <div className="rounded-xl bg-emerald-50/70 border border-emerald-200 p-3.5 text-xs text-emerald-900 space-y-1.5">
+                  <div className="flex items-center gap-2 font-bold text-emerald-800">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    <span>FixMate Service Guarantee Included</span>
+                  </div>
+                  <p className="text-slate-600 text-[11px] leading-relaxed">
+                    Includes diagnostic inspection, certified tools, post-service cleanup, and 30-day warranty coverage.
+                  </p>
+                </div>
+
+                {!isAuthenticated && (
+                  <div className="flex items-center gap-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-800 border border-amber-200">
+                    <Lock className="h-4 w-4 text-amber-600 shrink-0" />
+                    <span>
+                      You are currently browsing as guest. You will be redirected to sign in before confirming your booking.
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+                  <button
+                    onClick={() => setGuestModalItem(null)}
+                    className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => {
+                      const svc = guestModalItem.service!
+                      setGuestModalItem(null)
+                      handleProceedToBooking({ serviceId: svc.id, categoryId: svc.categoryId })
+                    }}
+                    className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-bold text-white shadow-md hover:bg-blue-700 transition"
+                  >
+                    <span>{isAuthenticated ? 'Book Service Now' : 'Login to Book Service'}</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {guestModalItem.type === 'PROVIDER' && guestModalItem.provider && (
+              <div className="space-y-5">
+                <div className="flex items-start gap-3.5">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-extrabold text-lg shadow-md">
+                    {guestModalItem.provider.name.substring(0, 2).toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-xl font-extrabold text-slate-900">
+                        {guestModalItem.provider.name}
+                      </h3>
+                      <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-extrabold text-emerald-800">
+                        100% Verified
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {guestModalItem.provider.specialization} &bull; {guestModalItem.provider.city}, Gujarat
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                  <div className="rounded-xl bg-slate-50 p-2.5 border border-slate-200">
+                    <span className="text-amber-500 font-bold flex items-center justify-center gap-1">
+                      <Star className="h-3.5 w-3.5 fill-amber-400" />
+                      {guestModalItem.provider.ratingAverage?.toFixed(1) || '4.9'}
+                    </span>
+                    <span className="text-[10px] text-slate-400">Rating ({guestModalItem.provider.ratingCount || 50}+)</span>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-2.5 border border-slate-200">
+                    <span className="font-extrabold text-slate-900">{guestModalItem.provider.experienceYears}+ Yrs</span>
+                    <span className="text-[10px] text-slate-400">Experience</span>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-2.5 border border-slate-200">
+                    <span className="font-extrabold text-emerald-600">Available</span>
+                    <span className="text-[10px] text-slate-400">{guestModalItem.provider.serviceRadiusKm || 15} km Radius</span>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-xs font-bold text-slate-900 mb-1">About the Specialist</h4>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    {guestModalItem.provider.bio}
+                  </p>
+                </div>
+
+                {guestModalItem.provider.skills && guestModalItem.provider.skills.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900 mb-1.5">Specialized Skills</h4>
+                    <div className="flex flex-wrap gap-1.5">
+                      {guestModalItem.provider.skills.map((skill, idx) => (
+                        <span
+                          key={idx}
+                          className="rounded-lg bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700 border border-blue-200/60"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {!isAuthenticated && (
+                  <div className="flex items-center gap-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-800 border border-amber-200">
+                    <Lock className="h-4 w-4 text-amber-600 shrink-0" />
+                    <span>
+                      Public profile. You will be redirected to sign in to schedule service with this specialist.
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+                  <button
+                    onClick={() => setGuestModalItem(null)}
+                    className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => {
+                      const prov = guestModalItem.provider!
+                      setGuestModalItem(null)
+                      handleProceedToBooking({ providerId: prov.id, categoryId: prov.categoryId })
+                    }}
+                    className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white shadow-md hover:bg-indigo-700 transition"
+                  >
+                    <span>{isAuthenticated ? 'Book This Specialist' : 'Login to Book Specialist'}</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── 3. How FixMate Works (Timeline Workflow) ───────────────── */}
       <section id="how-it-works" className="bg-slate-900 py-16 sm:py-24 text-white">

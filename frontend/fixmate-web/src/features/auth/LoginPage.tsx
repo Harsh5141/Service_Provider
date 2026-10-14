@@ -25,7 +25,12 @@ export default function LoginPage() {
 
   const [showPassword, setShowPassword] = useState(false)
 
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname
+  const locationState = location.state as { from?: string | { pathname: string; search?: string } } | undefined
+  const fromTarget = typeof locationState?.from === 'string'
+    ? locationState.from
+    : locationState?.from
+    ? `${locationState.from.pathname}${locationState.from.search || ''}`
+    : null
 
   useEffect(() => {
     dispatch(clearError())
@@ -49,8 +54,8 @@ export default function LoginPage() {
       const result = await dispatch(login(data)).unwrap()
       toast.success(`Welcome back, ${result.user.name}!`)
 
-      if (from) {
-        navigate(from, { replace: true })
+      if (fromTarget) {
+        navigate(fromTarget, { replace: true })
       } else if (result.user.role === 'Admin') {
         navigate('/admin', { replace: true })
       } else if (result.user.role === 'Provider') {
@@ -353,7 +358,7 @@ export default function LoginPage() {
 
           <div className="pt-2 text-center text-sm text-slate-400">
             Don't have an account?{' '}
-            <Link to="/register" className="text-sky-400 hover:text-sky-300 font-medium transition">
+            <Link to="/register" state={locationState} className="text-sky-400 hover:text-sky-300 font-medium transition">
               Sign up as Customer
             </Link>
             <div className="mt-2 text-xs">

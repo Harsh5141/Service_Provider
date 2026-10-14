@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -48,7 +48,15 @@ type RegisterFormValues = z.infer<typeof registerSchema>
 export default function RegisterPage() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
+  const location = useLocation()
   const { isLoading, error } = useAppSelector((state) => state.auth)
+
+  const locationState = location.state as { from?: string | { pathname: string; search?: string } } | undefined
+  const fromTarget = typeof locationState?.from === 'string'
+    ? locationState.from
+    : locationState?.from
+    ? `${locationState.from.pathname}${locationState.from.search || ''}`
+    : null
 
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -162,7 +170,11 @@ export default function RegisterPage() {
         }),
       ).unwrap()
       toast.success(`Account created successfully! Welcome, ${result.user.name}!`)
-      navigate('/dashboard', { replace: true })
+      if (fromTarget) {
+        navigate(fromTarget, { replace: true })
+      } else {
+        navigate('/dashboard', { replace: true })
+      }
     } catch (err: any) {
       toast.error(err || 'Registration failed. Please try again.')
     }
@@ -490,7 +502,7 @@ export default function RegisterPage() {
 
           <div className="pt-4 border-t border-slate-700/60 text-center text-sm text-slate-400">
             Already have an account?{' '}
-            <Link to="/login" className="text-sky-400 hover:text-sky-300 font-medium transition">
+            <Link to="/login" state={locationState} className="text-sky-400 hover:text-sky-300 font-medium transition">
               Sign In
             </Link>
           </div>
