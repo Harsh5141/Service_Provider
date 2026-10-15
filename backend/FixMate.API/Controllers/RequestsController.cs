@@ -217,6 +217,56 @@ public class RequestsController : ControllerBase
         return CreatedAtAction(nameof(GetRequestById), new { id = request.Id }, ApiResponse<ServiceRequestDto>.Ok(result, message));
     }
 
+    [HttpGet]
+    public async Task<ActionResult<ApiResponse<List<ServiceRequestDto>>>> GetAllRequests()
+    {
+        var requests = await _context.ServiceRequests
+            .AsNoTracking()
+            .Include(r => r.Customer)
+            .Include(r => r.ProviderProfile)
+                .ThenInclude(p => p!.User)
+            .Include(r => r.Service)
+                .ThenInclude(s => s!.Category)
+            .Include(r => r.Address)
+            .OrderByDescending(r => r.CreatedAt)
+            .Select(r => new ServiceRequestDto
+            {
+                Id = r.Id,
+                CustomerId = r.CustomerId,
+                CustomerName = r.Customer != null ? r.Customer.Name : string.Empty,
+                CustomerPhone = r.Customer != null ? r.Customer.Phone : string.Empty,
+                CustomerEmail = r.Customer != null ? r.Customer.Email : string.Empty,
+                ProviderId = r.ProviderProfile != null ? r.ProviderProfile.UserId : null,
+                ProviderName = r.ProviderProfile != null && r.ProviderProfile.User != null ? r.ProviderProfile.User.Name : null,
+                ProviderPhone = r.ProviderProfile != null && r.ProviderProfile.User != null ? r.ProviderProfile.User.Phone : null,
+                ProviderRating = r.ProviderProfile != null ? r.ProviderProfile.RatingAverage : null,
+                ProviderExperienceYears = r.ProviderProfile != null ? r.ProviderProfile.ExperienceYears : null,
+                ServiceId = r.ServiceId,
+                ServiceName = r.Service != null ? r.Service.Name : string.Empty,
+                CategoryName = r.Service != null && r.Service.Category != null ? r.Service.Category.Name : string.Empty,
+                AddressId = r.AddressId,
+                AddressText = r.Address != null ? r.Address.Street : null,
+                City = r.Address != null ? r.Address.City : null,
+                State = r.Address != null ? r.Address.State : null,
+                PostalCode = r.Address != null ? r.Address.PostalCode : null,
+                Status = r.Status,
+                DistanceKm = r.DistanceKm,
+                AssignedAt = r.AssignedAt,
+                EstimatedArrivalMinutes = r.DistanceKm.HasValue ? (int)(r.DistanceKm.Value * 2.5m + 10) : null,
+                ScheduledDate = r.ScheduledDate,
+                PreferredTimeSlot = r.TimeSlot,
+                ProblemDescription = r.ProblemDescription,
+                EstimatedCost = r.TotalAmount,
+                FinalCost = r.TotalAmount,
+                CancellationReason = r.CancellationReason,
+                CreatedAt = r.CreatedAt,
+                UpdatedAt = r.UpdatedAt
+            })
+            .ToListAsync();
+
+        return Ok(ApiResponse<List<ServiceRequestDto>>.Ok(requests, "All service requests retrieved successfully"));
+    }
+
     [HttpGet("my")]
     public async Task<ActionResult<ApiResponse<List<ServiceRequestDto>>>> GetMyRequests()
     {

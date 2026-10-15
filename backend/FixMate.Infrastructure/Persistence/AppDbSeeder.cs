@@ -658,24 +658,271 @@ public class AppDbSeeder
             }
         }
 
-        // ── 5. Clear / Reset All Service Bookings & Request Data ──────────────
-        try
+        // ── 5. Seed Dynamic Service Bookings, Requests, Payments, Complaints & Reviews ───────
+        if (!await _context.ServiceRequests.IgnoreQueryFilters().AnyAsync())
         {
-            await _context.Database.ExecuteSqlRawAsync(@"
-                DELETE FROM [dbo].[Refunds];
-                DELETE FROM [dbo].[Payments];
-                DELETE FROM [dbo].[Reviews];
-                DELETE FROM [dbo].[Complaints];
-                DELETE FROM [dbo].[RequestMedia];
-                DELETE FROM [dbo].[RequestStatusHistory];
-                DELETE FROM [dbo].[ServiceHistory];
-                DELETE FROM [dbo].[ServiceRequests];
-            ");
-            Console.WriteLine("[Seeder] Successfully cleared all service bookings and requests from database.");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[Seeder] Service request cleanup note: {ex.Message}");
+            var customerJohn = await _context.Users.FirstOrDefaultAsync(u => u.Email == "john@fixmate.test");
+            var customerPriya = await _context.Users.FirstOrDefaultAsync(u => u.Email == "priya@fixmate.test");
+            var customerAnanya = await _context.Users.FirstOrDefaultAsync(u => u.Email == "ananya@fixmate.test");
+            var customerRohan = await _context.Users.FirstOrDefaultAsync(u => u.Email == "rohan@fixmate.test");
+
+            var providerAarav = await _context.Users.FirstOrDefaultAsync(u => u.Email == "aarav.provider@fixmate.test");
+            var providerBhavin = await _context.Users.FirstOrDefaultAsync(u => u.Email == "bhavin.provider@fixmate.test");
+            var providerChetan = await _context.Users.FirstOrDefaultAsync(u => u.Email == "chetan.provider@fixmate.test");
+            var providerDeepak = await _context.Users.FirstOrDefaultAsync(u => u.Email == "deepak.provider@fixmate.test");
+            var providerEshwar = await _context.Users.FirstOrDefaultAsync(u => u.Email == "eshwar.provider@fixmate.test");
+
+            var profileAarav = providerAarav != null ? await _context.ProviderProfiles.FirstOrDefaultAsync(p => p.UserId == providerAarav.Id) : null;
+            var profileBhavin = providerBhavin != null ? await _context.ProviderProfiles.FirstOrDefaultAsync(p => p.UserId == providerBhavin.Id) : null;
+            var profileChetan = providerChetan != null ? await _context.ProviderProfiles.FirstOrDefaultAsync(p => p.UserId == providerChetan.Id) : null;
+            var profileDeepak = providerDeepak != null ? await _context.ProviderProfiles.FirstOrDefaultAsync(p => p.UserId == providerDeepak.Id) : null;
+            var profileEshwar = providerEshwar != null ? await _context.ProviderProfiles.FirstOrDefaultAsync(p => p.UserId == providerEshwar.Id) : null;
+
+            var services = await _context.Services.Include(s => s.Category).ToListAsync();
+            var acFoamService = services.FirstOrDefault(s => s.Name.Contains("AC Foam Jet")) ?? services.First();
+            var fanService = services.FirstOrDefault(s => s.Name.Contains("Ceiling Fan")) ?? services.First();
+            var drainService = services.FirstOrDefault(s => s.Name.Contains("Clogged Drain")) ?? services.First();
+            var washService = services.FirstOrDefault(s => s.Name.Contains("Washing Machine")) ?? services.First();
+            var cleanService = services.FirstOrDefault(s => s.Name.Contains("Bathroom Deep Scrub")) ?? services.First();
+
+            var addrJohn = customerJohn != null ? await _context.Addresses.FirstOrDefaultAsync(a => a.UserId == customerJohn.Id) : null;
+            var addrPriya = customerPriya != null ? await _context.Addresses.FirstOrDefaultAsync(a => a.UserId == customerPriya.Id) : null;
+            var addrAnanya = customerAnanya != null ? await _context.Addresses.FirstOrDefaultAsync(a => a.UserId == customerAnanya.Id) : null;
+
+            if (customerJohn != null && addrJohn != null && acFoamService != null && profileChetan != null)
+            {
+                // Request 1: OnTheWay (Live active job for John & Chetan)
+                var req1 = new ServiceRequest
+                {
+                    CustomerId = customerJohn.Id,
+                    ProviderProfileId = profileChetan.Id,
+                    ServiceId = acFoamService.Id,
+                    AddressId = addrJohn.Id,
+                    Status = RequestStatus.OnTheWay,
+                    ScheduledDate = DateTime.UtcNow,
+                    TimeSlot = "10:00 AM - 12:00 PM",
+                    ProblemDescription = "AC cooling efficiency low, needs foam jet wash and coil cleaning.",
+                    BaseAmount = 548.00m,
+                    TotalAmount = 548.00m,
+                    AssignedAt = DateTime.UtcNow.AddMinutes(-30),
+                    DistanceKm = 2.4m,
+                    CreatedAt = DateTime.UtcNow.AddHours(-2),
+                    UpdatedAt = DateTime.UtcNow
+                };
+                _context.ServiceRequests.Add(req1);
+                await _context.SaveChangesAsync();
+
+                _context.Payments.Add(new Payment
+                {
+                    RequestId = req1.Id,
+                    RazorpayOrderId = "order_" + Guid.NewGuid().ToString("N")[..8],
+                    RazorpayPaymentId = "pay_" + Guid.NewGuid().ToString("N")[..8],
+                    Amount = 548.00m,
+                    PlatformFee = 82.20m,
+                    ProviderPayout = 465.80m,
+                    Method = PaymentMethod.Online,
+                    Status = PaymentStatus.Completed,
+                    PaidAt = DateTime.UtcNow.AddHours(-1),
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                });
+            }
+
+            if (customerPriya != null && addrPriya != null && drainService != null && profileBhavin != null)
+            {
+                // Request 2: Completed plumbing service for Priya & Bhavin
+                var req2 = new ServiceRequest
+                {
+                    CustomerId = customerPriya.Id,
+                    ProviderProfileId = profileBhavin.Id,
+                    ServiceId = drainService.Id,
+                    AddressId = addrPriya.Id,
+                    Status = RequestStatus.Completed,
+                    ScheduledDate = DateTime.UtcNow.AddDays(-1),
+                    TimeSlot = "02:00 PM - 04:00 PM",
+                    ProblemDescription = "Kitchen sink drain completely clogged.",
+                    BaseAmount = 349.00m,
+                    TotalAmount = 349.00m,
+                    AssignedAt = DateTime.UtcNow.AddDays(-1).AddHours(-2),
+                    DistanceKm = 1.8m,
+                    CreatedAt = DateTime.UtcNow.AddDays(-1).AddHours(-4),
+                    UpdatedAt = DateTime.UtcNow.AddDays(-1)
+                };
+                _context.ServiceRequests.Add(req2);
+                await _context.SaveChangesAsync();
+
+                _context.Payments.Add(new Payment
+                {
+                    RequestId = req2.Id,
+                    RazorpayOrderId = "order_" + Guid.NewGuid().ToString("N")[..8],
+                    RazorpayPaymentId = "pay_" + Guid.NewGuid().ToString("N")[..8],
+                    Amount = 349.00m,
+                    PlatformFee = 52.35m,
+                    ProviderPayout = 296.65m,
+                    Method = PaymentMethod.Online,
+                    Status = PaymentStatus.Completed,
+                    PaidAt = DateTime.UtcNow.AddDays(-1),
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                });
+
+                _context.Reviews.Add(new Review
+                {
+                    RequestId = req2.Id,
+                    CustomerId = customerPriya.Id,
+                    ProviderProfileId = profileBhavin.Id,
+                    Rating = 5,
+                    Comment = "Prompt arrival within 20 mins. Fixed the kitchen sink blockage quickly without any mess.",
+                    CreatedAt = DateTime.UtcNow.AddDays(-1),
+                    UpdatedAt = DateTime.UtcNow.AddDays(-1)
+                });
+            }
+
+            if (customerAnanya != null && addrAnanya != null && fanService != null && profileAarav != null)
+            {
+                // Request 3: Completed fan installation
+                var req3 = new ServiceRequest
+                {
+                    CustomerId = customerAnanya.Id,
+                    ProviderProfileId = profileAarav.Id,
+                    ServiceId = fanService.Id,
+                    AddressId = addrAnanya.Id,
+                    Status = RequestStatus.Completed,
+                    ScheduledDate = DateTime.UtcNow.AddDays(-3),
+                    TimeSlot = "11:00 AM - 01:00 PM",
+                    ProblemDescription = "New ceiling fan replacement and regulator check.",
+                    BaseAmount = 249.00m,
+                    TotalAmount = 249.00m,
+                    AssignedAt = DateTime.UtcNow.AddDays(-3).AddHours(-2),
+                    DistanceKm = 3.1m,
+                    CreatedAt = DateTime.UtcNow.AddDays(-3).AddHours(-3),
+                    UpdatedAt = DateTime.UtcNow.AddDays(-3)
+                };
+                _context.ServiceRequests.Add(req3);
+                await _context.SaveChangesAsync();
+
+                _context.Payments.Add(new Payment
+                {
+                    RequestId = req3.Id,
+                    RazorpayOrderId = "order_" + Guid.NewGuid().ToString("N")[..8],
+                    RazorpayPaymentId = "pay_" + Guid.NewGuid().ToString("N")[..8],
+                    Amount = 249.00m,
+                    PlatformFee = 37.35m,
+                    ProviderPayout = 211.65m,
+                    Method = PaymentMethod.Online,
+                    Status = PaymentStatus.Completed,
+                    PaidAt = DateTime.UtcNow.AddDays(-3),
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                });
+
+                _context.Reviews.Add(new Review
+                {
+                    RequestId = req3.Id,
+                    CustomerId = customerAnanya.Id,
+                    ProviderProfileId = profileAarav.Id,
+                    Rating = 5,
+                    Comment = "Exceptional work! Very knowledgeable and polite technician.",
+                    CreatedAt = DateTime.UtcNow.AddDays(-3),
+                    UpdatedAt = DateTime.UtcNow.AddDays(-3)
+                });
+            }
+
+            if (customerJohn != null && addrJohn != null && washService != null && profileDeepak != null)
+            {
+                // Request 4: Open complaint / dispute example
+                var req4 = new ServiceRequest
+                {
+                    CustomerId = customerJohn.Id,
+                    ProviderProfileId = profileDeepak.Id,
+                    ServiceId = washService.Id,
+                    AddressId = addrJohn.Id,
+                    Status = RequestStatus.Completed,
+                    ScheduledDate = DateTime.UtcNow.AddDays(-2),
+                    TimeSlot = "04:00 PM - 06:00 PM",
+                    ProblemDescription = "Front load washing machine making loud noise during spin cycle.",
+                    BaseAmount = 399.00m,
+                    TotalAmount = 399.00m,
+                    AssignedAt = DateTime.UtcNow.AddDays(-2).AddHours(-2),
+                    DistanceKm = 2.0m,
+                    CreatedAt = DateTime.UtcNow.AddDays(-2).AddHours(-4),
+                    UpdatedAt = DateTime.UtcNow.AddDays(-2)
+                };
+                _context.ServiceRequests.Add(req4);
+                await _context.SaveChangesAsync();
+
+                _context.Payments.Add(new Payment
+                {
+                    RequestId = req4.Id,
+                    RazorpayOrderId = "order_" + Guid.NewGuid().ToString("N")[..8],
+                    RazorpayPaymentId = "pay_" + Guid.NewGuid().ToString("N")[..8],
+                    Amount = 399.00m,
+                    PlatformFee = 59.85m,
+                    ProviderPayout = 339.15m,
+                    Method = PaymentMethod.Online,
+                    Status = PaymentStatus.Completed,
+                    PaidAt = DateTime.UtcNow.AddDays(-2),
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                });
+
+                _context.Complaints.Add(new Complaint
+                {
+                    RequestId = req4.Id,
+                    CustomerId = customerJohn.Id,
+                    Title = "Technician arrived 30 mins late",
+                    Description = "Technician arrived 30 minutes late due to traffic, requested coupon compensation.",
+                    Status = ComplaintStatus.Open,
+                    CreatedAt = DateTime.UtcNow.AddDays(-2),
+                    UpdatedAt = DateTime.UtcNow.AddDays(-2)
+                });
+            }
+
+            // Seed user appliances for Equipment Passport
+            if (customerJohn != null && !await _context.Appliances.AnyAsync(a => a.UserId == customerJohn.Id))
+            {
+                _context.Appliances.AddRange(
+                    new Appliance
+                    {
+                        UserId = customerJohn.Id,
+                        Name = "Samsung 1.5 Ton 5-Star Split AC",
+                        Category = "Air Conditioner",
+                        Brand = "Samsung",
+                        ModelNumber = "AR18TY5QAWK",
+                        PurchaseDate = DateTime.UtcNow.AddYears(-2),
+                        WarrantyExpiryDate = DateTime.UtcNow.AddYears(1),
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    new Appliance
+                    {
+                        UserId = customerJohn.Id,
+                        Name = "LG 8.0 Kg Front Load Washing Machine",
+                        Category = "Washing Machine",
+                        Brand = "LG",
+                        ModelNumber = "FHM1208ZDW",
+                        PurchaseDate = DateTime.UtcNow.AddYears(-1),
+                        WarrantyExpiryDate = DateTime.UtcNow.AddMonths(8),
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    new Appliance
+                    {
+                        UserId = customerJohn.Id,
+                        Name = "Kent Grand Plus RO Water Purifier",
+                        Category = "Water Purifier",
+                        Brand = "Kent",
+                        ModelNumber = "KENT-GP-1100",
+                        PurchaseDate = DateTime.UtcNow.AddYears(-3),
+                        WarrantyExpiryDate = DateTime.UtcNow.AddYears(-1),
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    }
+                );
+            }
+
+            await _context.SaveChangesAsync();
+            Console.WriteLine("[Seeder] Successfully seeded dynamic service bookings, payments, reviews, and appliances.");
         }
 
         await _context.SaveChangesAsync();
