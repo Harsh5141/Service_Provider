@@ -2,17 +2,55 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, CheckCircle2, Clock, MapPin, Phone, ShieldCheck,
-  Star, Navigation, AlertCircle
+  Star, Navigation, AlertCircle, PackageCheck, AlertTriangle, XCircle, Info, Wrench
 } from 'lucide-react'
 import api from '@/lib/apiClient'
 import toast from 'react-hot-toast'
 import { getRequestOtp } from '@/lib/otpUtils'
+import {
+  getAdditionalQuote, updateQuoteStatus, AdditionalServiceQuote
+} from '@/lib/additionalServicesStorage'
 
 export default function RequestDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [request, setRequest] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [additionalQuote, setAdditionalQuote] = useState<AdditionalServiceQuote | null>(null)
+
+  useEffect(() => {
+    const targetId = id ?? '104'
+    const loadQuote = () => {
+      const q = getAdditionalQuote(targetId)
+      setAdditionalQuote(q)
+    }
+    loadQuote()
+    const handleQuoteUpdate = (e: any) => {
+      if (e?.detail?.jobId === targetId || !e?.detail?.jobId) {
+        loadQuote()
+      }
+    }
+    window.addEventListener('fixmate_quote_updated', handleQuoteUpdate)
+    window.addEventListener('storage', loadQuote)
+    return () => {
+      window.removeEventListener('fixmate_quote_updated', handleQuoteUpdate)
+      window.removeEventListener('storage', loadQuote)
+    }
+  }, [id])
+
+  const handleApproveQuote = () => {
+    const targetId = id ?? '104'
+    const updated = updateQuoteStatus(targetId, 'APPROVED')
+    setAdditionalQuote(updated)
+    toast.success('Additional services & spare part changes approved!')
+  }
+
+  const handleRejectQuote = () => {
+    const targetId = id ?? '104'
+    const updated = updateQuoteStatus(targetId, 'REJECTED')
+    setAdditionalQuote(updated)
+    toast.error('Additional service charge request declined.')
+  }
 
   useEffect(() => {
     async function loadDetail() {
@@ -315,6 +353,183 @@ export default function RequestDetailPage() {
         </div>
       </div>
 
+      {/* ── Additional Services & Replaced Parts Approval Card ── */}
+      {additionalQuote && additionalQuote.parts.length > 0 && (
+        <div className="rounded-2xl border border-blue-200 bg-white p-6 space-y-4 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 font-bold">
+                <PackageCheck size={20} />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-gray-900">
+                  Technician Part Replacement & Extra Service Charges
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Diagnosed on-site requirement for your equipment
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500 font-medium">Customer Status:</span>
+              <span
+                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                  additionalQuote.status === 'APPROVED'
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                    : additionalQuote.status === 'REJECTED'
+                    ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                    : 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
+                }`}
+              >
+                {additionalQuote.status === 'APPROVED' && <CheckCircle2 size={13} className="text-emerald-600" />}
+                {additionalQuote.status === 'REJECTED' && <XCircle size={13} className="text-rose-600" />}
+                {additionalQuote.status === 'PENDING_APPROVAL' && <AlertTriangle size={13} className="text-amber-600" />}
+                {additionalQuote.status === 'PENDING_APPROVAL'
+                  ? 'Awaiting Your Approval'
+                  : additionalQuote.status === 'APPROVED'
+                  ? 'Approved by You'
+                  : 'Declined by You'}
+              </span>
+            </div>
+          </div>
+
+          {/* Replaced Parts Grid: Showing Part Photo, Name & Product Price */}
+          <div className="space-y-3">
+            <p className="text-xs font-bold text-gray-700">Replaced Parts List:</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {additionalQuote.parts.map((part) => (
+                <div
+                  key={part.id}
+                  className="flex items-center gap-3.5 bg-gray-50/80 p-3 rounded-2xl border border-gray-200 hover:border-blue-300 transition"
+                >
+                  <img
+                    src={part.imageUrl}
+                    alt={part.name}
+                    className="h-16 w-16 rounded-xl object-cover border border-gray-200 shrink-0 bg-white"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-xs font-bold text-gray-900 truncate" title={part.name}>
+                      {part.name}
+                    </h4>
+                    <div className="mt-1 flex items-baseline gap-1">
+                      <span className="text-[11px] text-gray-500">Product Price:</span>
+                      <span className="text-sm font-black text-emerald-600">₹{part.price.toFixed(2)}</span>
+                    </div>
+                    {part.reason && (
+                      <p className="text-[11px] text-gray-500 mt-0.5 truncate" title={part.reason}>
+                        Note: {part.reason}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Service Scope & Booking Modifications Proposed by Provider */}
+            {(additionalQuote.serviceNameChange || additionalQuote.serviceScopeNotes || additionalQuote.revisedEstimatedMinutes) && (
+              <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3.5 space-y-2 text-xs">
+                <div className="flex items-center gap-2 text-indigo-900 font-bold">
+                  <Wrench size={14} className="text-indigo-600" />
+                  <span>Proposed Changes in Service Scope & Diagnosis</span>
+                </div>
+
+                {additionalQuote.serviceNameChange && (
+                  <div className="flex items-baseline justify-between bg-white p-2 rounded-lg border border-indigo-100">
+                    <span className="text-gray-500 text-[11px]">Revised Service Package:</span>
+                    <span className="font-extrabold text-indigo-950">{additionalQuote.serviceNameChange}</span>
+                  </div>
+                )}
+
+                {additionalQuote.revisedEstimatedMinutes && (
+                  <div className="flex items-baseline justify-between bg-white p-2 rounded-lg border border-indigo-100">
+                    <span className="text-gray-500 text-[11px]">Revised Duration:</span>
+                    <span className="font-bold text-gray-800">~{additionalQuote.revisedEstimatedMinutes} mins</span>
+                  </div>
+                )}
+
+                {additionalQuote.serviceScopeNotes && (
+                  <div className="bg-white p-2.5 rounded-lg border border-indigo-100 text-[11px] text-gray-700 leading-relaxed">
+                    <strong className="text-indigo-950">Technician Diagnostic Findings: </strong>
+                    {additionalQuote.serviceScopeNotes}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Extra Itemized Service Tasks */}
+            {additionalQuote.extraServices && additionalQuote.extraServices.length > 0 && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3.5 space-y-2 text-xs">
+                <span className="font-bold text-amber-900 block text-[11px] uppercase tracking-wider">
+                  Additional Service Procedures / Tasks ({additionalQuote.extraServices.length})
+                </span>
+                <div className="space-y-1.5">
+                  {additionalQuote.extraServices.map((srv) => (
+                    <div key={srv.id} className="flex items-start justify-between bg-white p-2 rounded-lg border border-amber-100">
+                      <div>
+                        <p className="font-bold text-gray-800">{srv.title}</p>
+                        {srv.description && <p className="text-[11px] text-gray-500">{srv.description}</p>}
+                      </div>
+                      <span className="font-black text-amber-800 ml-2">₹{srv.charge.toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {additionalQuote.additionalLaborCharge > 0 && (
+              <div className="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-200 text-xs">
+                <div>
+                  <span className="font-bold text-gray-800">Additional Service / Installation Labor:</span>
+                  <p className="text-[10px] text-gray-500">Service calibration & precision fitting</p>
+                </div>
+                <span className="font-bold text-gray-900">₹{additionalQuote.additionalLaborCharge.toFixed(2)}</span>
+              </div>
+            )}
+          </div>
+
+          {/* User Side Action Buttons */}
+          {additionalQuote.status === 'PENDING_APPROVAL' ? (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-gray-100 bg-blue-50/50 p-4 rounded-xl">
+              <div className="flex items-center gap-2 text-xs text-blue-900">
+                <Info size={16} className="text-blue-600 shrink-0" />
+                <span>
+                  Technician has proposed service scope modifications and/or spare parts. Please review and approve.
+                </span>
+              </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  onClick={handleRejectQuote}
+                  className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 transition cursor-pointer"
+                >
+                  Decline
+                </button>
+                <button
+                  type="button"
+                  onClick={handleApproveQuote}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-5 py-2 text-xs font-bold text-white shadow hover:bg-emerald-700 transition cursor-pointer"
+                >
+                  <CheckCircle2 size={14} /> Approve Changes (₹{additionalQuote.totalAdditionalAmount.toFixed(2)})
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="pt-2 border-t border-gray-100 text-xs text-gray-500">
+              {additionalQuote.status === 'APPROVED' ? (
+                <span className="text-emerald-700 font-bold flex items-center gap-1">
+                  <CheckCircle2 size={14} /> You have approved these parts. Total bill will reflect the updated price.
+                </span>
+              ) : (
+                <span className="text-rose-600 font-bold flex items-center gap-1">
+                  <XCircle size={14} /> You declined these additional charges. The technician will continue standard servicing only.
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Invoice & Problem Breakdown */}
       <div className="rounded-2xl border border-gray-200 bg-white p-6 space-y-4 shadow-xs">
         <h3 className="text-sm font-bold text-gray-900 border-b border-gray-100 pb-3">
@@ -329,6 +544,15 @@ export default function RequestDetailPage() {
             <span>Base Service Charge:</span>
             <span>₹{request.baseAmount ?? 499}</span>
           </div>
+
+          {/* Replaced Parts & Extra Services reflection */}
+          {additionalQuote && additionalQuote.status === 'APPROVED' && (
+            <div className="flex justify-between text-blue-700 font-bold bg-blue-50/70 p-2 rounded-lg border border-blue-100">
+              <span>Approved Replaced Parts & Extra Services:</span>
+              <span>+₹{additionalQuote.totalAdditionalAmount.toFixed(2)}</span>
+            </div>
+          )}
+
           <div className="flex justify-between text-gray-600">
             <span>Convenience & Safety Fee:</span>
             <span>₹49</span>
@@ -343,7 +567,12 @@ export default function RequestDetailPage() {
           </div>
           <div className="flex justify-between border-t border-gray-200 pt-3 text-base font-extrabold text-gray-900">
             <span>Total Payable Amount:</span>
-            <span className="text-emerald-600">₹{request.totalAmount ?? 548}</span>
+            <span className="text-emerald-600">
+              ₹{(
+                (request.totalAmount ?? 548) +
+                (additionalQuote && additionalQuote.status === 'APPROVED' ? additionalQuote.totalAdditionalAmount : 0)
+              ).toFixed(2)}
+            </span>
           </div>
         </div>
 

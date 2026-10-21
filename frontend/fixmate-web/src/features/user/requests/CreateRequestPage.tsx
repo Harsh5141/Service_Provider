@@ -5,7 +5,7 @@ import {
   Clock, ShieldCheck, Calendar, CheckCircle2,
   ArrowLeft, MapPin, Plus, RefreshCw,
   Wrench, X, Tv, Hammer, Paintbrush, ShieldAlert, Flame, Camera,
-  Search, ArrowRight, Award, FileText
+  Search, ArrowRight, Award, FileText, Sun, Sunset, Moon
 } from 'lucide-react'
 import api from '@/lib/apiClient'
 import toast from 'react-hot-toast'
@@ -116,9 +116,7 @@ export default function CreateRequestPage() {
   const [viewMode, setViewMode] = useState<'ALL' | 'SERVICES' | 'PROVIDERS'>('ALL')
   const [searchQuery, setSearchQuery] = useState('')
   const [scheduledDate, setScheduledDate] = useState<string>(() => {
-    const d = new Date()
-    d.setDate(d.getDate() + 1)
-    return d.toISOString().split('T')[0]
+    return new Date().toISOString().split('T')[0]
   })
   const [timeSlot, setTimeSlot] = useState<string>('Morning (9 AM - 12 PM)')
   const [problemDescription, setProblemDescription] = useState<string>('')
@@ -574,18 +572,16 @@ export default function CreateRequestPage() {
                   }
                 }}
                 disabled={!s.done && s.num > step}
-                className={`flex items-center gap-2.5 rounded-xl p-2.5 text-left transition ${
-                  s.active
+                className={`flex items-center gap-2.5 rounded-xl p-2.5 text-left transition ${s.active
                     ? 'bg-blue-600 text-white shadow-md'
                     : s.done
-                    ? 'bg-white/15 text-blue-200 hover:bg-white/20 cursor-pointer'
-                    : 'bg-white/5 text-slate-400 opacity-60 cursor-not-allowed'
-                }`}
+                      ? 'bg-white/15 text-blue-200 hover:bg-white/20 cursor-pointer'
+                      : 'bg-white/5 text-slate-400 opacity-60 cursor-not-allowed'
+                  }`}
               >
                 <div
-                  className={`flex h-6 w-6 items-center justify-center rounded-lg text-xs font-bold ${
-                    s.done ? 'bg-emerald-400 text-slate-900' : s.active ? 'bg-white text-blue-600' : 'bg-white/20 text-white'
-                  }`}
+                  className={`flex h-6 w-6 items-center justify-center rounded-lg text-xs font-bold ${s.done ? 'bg-emerald-400 text-slate-900' : s.active ? 'bg-white text-blue-600' : 'bg-white/20 text-white'
+                    }`}
                 >
                   {s.done ? <Check size={13} /> : s.num}
                 </div>
@@ -620,23 +616,20 @@ export default function CreateRequestPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
               <button
                 onClick={() => setSelectedCategoryId(0)}
-                className={`flex items-center justify-between gap-2 rounded-2xl p-3 text-left transition-all border ${
-                  selectedCategoryId === 0
+                className={`flex items-center justify-between gap-2 rounded-2xl p-3 text-left transition-all border ${selectedCategoryId === 0
                     ? 'bg-blue-600 text-white border-blue-600 shadow-md ring-2 ring-blue-600/20'
                     : 'bg-gray-50/70 text-gray-800 border-gray-200/70 hover:bg-white hover:border-blue-300 hover:shadow-xs'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
-                    selectedCategoryId === 0 ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-600'
-                  }`}>
+                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${selectedCategoryId === 0 ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-600'
+                    }`}>
                     <Sparkles size={15} />
                   </div>
                   <span className="text-xs font-bold truncate">All Services</span>
                 </div>
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-black shrink-0 ${
-                  selectedCategoryId === 0 ? 'bg-white/20 text-white' : 'bg-gray-200/80 text-gray-700'
-                }`}>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-black shrink-0 ${selectedCategoryId === 0 ? 'bg-white/20 text-white' : 'bg-gray-200/80 text-gray-700'
+                  }`}>
                   {services.length}
                 </span>
               </button>
@@ -651,23 +644,20 @@ export default function CreateRequestPage() {
                   <button
                     key={cat.id}
                     onClick={() => setSelectedCategoryId(cat.id)}
-                    className={`flex items-center justify-between gap-2 rounded-2xl p-3 text-left transition-all border ${
-                      isSelected
+                    className={`flex items-center justify-between gap-2 rounded-2xl p-3 text-left transition-all border ${isSelected
                         ? 'bg-blue-600 text-white border-blue-600 shadow-md ring-2 ring-blue-600/20'
                         : 'bg-white text-gray-800 border-gray-200/80 hover:bg-blue-50/40 hover:border-blue-300 hover:shadow-xs'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition ${
-                        isSelected ? 'bg-white/20 text-white' : `${meta.bg} ${meta.color}`
-                      }`}>
+                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition ${isSelected ? 'bg-white/20 text-white' : `${meta.bg} ${meta.color}`
+                        }`}>
                         <Icon size={15} />
                       </div>
                       <span className="text-xs font-bold truncate">{cat.name}</span>
                     </div>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-black shrink-0 ${
-                      isSelected ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
-                    }`}>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-black shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+                      }`}>
                       {catServiceCount}
                     </span>
                   </button>
@@ -687,11 +677,10 @@ export default function CreateRequestPage() {
                 <button
                   key={m.key}
                   onClick={() => setViewMode(m.key as any)}
-                  className={`rounded-xl px-3.5 py-2 text-xs font-bold transition ${
-                    viewMode === m.key
+                  className={`rounded-xl px-3.5 py-2 text-xs font-bold transition ${viewMode === m.key
                       ? 'bg-blue-600 text-white shadow-xs'
                       : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                  }`}
+                    }`}
                 >
                   {m.label}
                 </button>
@@ -729,9 +718,8 @@ export default function CreateRequestPage() {
                   return (
                     <div
                       key={svc.id}
-                      className={`group relative rounded-2xl border bg-white p-5 transition-all duration-200 shadow-xs hover:border-blue-400 hover:shadow-lg flex flex-col justify-between space-y-4 ${
-                        isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-gray-200'
-                      }`}
+                      className={`group relative rounded-2xl border bg-white p-5 transition-all duration-200 shadow-xs hover:border-blue-400 hover:shadow-lg flex flex-col justify-between space-y-4 ${isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-gray-200'
+                        }`}
                     >
                       <div className="space-y-2.5">
                         <div className="flex items-center justify-between">
@@ -771,11 +759,10 @@ export default function CreateRequestPage() {
                         </span>
                         <button
                           onClick={() => handleSelectService(svc)}
-                          className={`inline-flex items-center gap-1 rounded-xl px-3.5 py-1.5 font-bold transition shadow-2xs ${
-                            isSelected
+                          className={`inline-flex items-center gap-1 rounded-xl px-3.5 py-1.5 font-bold transition shadow-2xs ${isSelected
                               ? 'bg-emerald-600 text-white'
                               : 'bg-blue-600 text-white hover:bg-blue-700'
-                          }`}
+                            }`}
                         >
                           <span>{isSelected ? 'Selected' : 'Select Package'}</span>
                           <ChevronRight size={13} />
@@ -805,9 +792,8 @@ export default function CreateRequestPage() {
                   return (
                     <div
                       key={prov.id}
-                      className={`group rounded-2xl border bg-white p-5 transition-all duration-200 shadow-xs hover:border-blue-400 hover:shadow-lg flex flex-col justify-between space-y-4 ${
-                        isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-gray-200'
-                      }`}
+                      className={`group rounded-2xl border bg-white p-5 transition-all duration-200 shadow-xs hover:border-blue-400 hover:shadow-lg flex flex-col justify-between space-y-4 ${isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-gray-200'
+                        }`}
                     >
                       <div className="space-y-3">
                         <div className="flex items-center gap-3">
@@ -842,11 +828,10 @@ export default function CreateRequestPage() {
                         <span className="text-gray-500">{prov.city}, Gujarat</span>
                         <button
                           onClick={() => handleSelectProvider(prov)}
-                          className={`inline-flex items-center gap-1 rounded-xl px-3.5 py-1.5 font-bold transition shadow-2xs ${
-                            isSelected
+                          className={`inline-flex items-center gap-1 rounded-xl px-3.5 py-1.5 font-bold transition shadow-2xs ${isSelected
                               ? 'bg-emerald-600 text-white'
                               : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                          }`}
+                            }`}
                         >
                           <span>{isSelected ? 'Specialist Picked' : 'Book Specialist'}</span>
                           <ChevronRight size={13} />
@@ -884,11 +869,10 @@ export default function CreateRequestPage() {
                 <div
                   key={addr.id}
                   onClick={() => setSelectedAddress(addr)}
-                  className={`rounded-2xl border p-4 cursor-pointer transition flex items-start justify-between gap-3 ${
-                    selectedAddress?.id === addr.id
+                  className={`rounded-2xl border p-4 cursor-pointer transition flex items-start justify-between gap-3 ${selectedAddress?.id === addr.id
                       ? 'border-blue-500 bg-blue-50/40 ring-2 ring-blue-500/20'
                       : 'border-gray-200 hover:border-blue-200 bg-white'
-                  }`}
+                    }`}
                 >
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
@@ -903,9 +887,8 @@ export default function CreateRequestPage() {
                     <p className="text-[11px] text-gray-500">{addr.city}, {addr.state} — {addr.postalCode}</p>
                   </div>
                   <div
-                    className={`h-5 w-5 rounded-full border-2 flex items-center justify-center ${
-                      selectedAddress?.id === addr.id ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300'
-                    }`}
+                    className={`h-5 w-5 rounded-full border-2 flex items-center justify-center ${selectedAddress?.id === addr.id ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300'
+                      }`}
                   >
                     {selectedAddress?.id === addr.id && <Check size={12} />}
                   </div>
@@ -915,79 +898,277 @@ export default function CreateRequestPage() {
           </div>
 
           {/* Schedule Date & Time Slot */}
-          <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-xs space-y-5">
-            <div className="flex items-center gap-2 border-b border-gray-100 pb-3">
-              <Calendar size={18} className="text-blue-600" />
-              <h3 className="text-base font-bold text-gray-900">Preferred Date & Arrival Slot</h3>
+          <div className="rounded-3xl border border-gray-200/90 bg-white p-6 sm:p-7 shadow-sm space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                  <Calendar size={18} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">Preferred Date & Arrival Slot</h3>
+                  <p className="text-xs text-gray-500">Pick when you'd like our certified professional to visit</p>
+                </div>
+              </div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200/60 text-[11px] font-semibold text-emerald-700">
+                <CheckCircle2 size={13} />
+                <span>On-time arrival guarantee</span>
+              </div>
             </div>
 
-            {/* Quick Date Chips */}
-            <div>
-              <label className="text-xs font-bold text-gray-700 block mb-2">Select Service Date</label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {[
-                  {
-                    label: 'Today',
-                    dateStr: new Date().toISOString().split('T')[0],
-                    desc: 'Express Arrival'
-                  },
-                  {
-                    label: 'Tomorrow',
-                    dateStr: (() => {
-                      const d = new Date()
-                      d.setDate(d.getDate() + 1)
-                      return d.toISOString().split('T')[0]
-                    })(),
-                    desc: 'Standard Dispatch'
-                  },
-                  {
-                    label: 'Custom Date',
-                    dateStr: scheduledDate,
-                    desc: 'Pick your calendar'
-                  }
-                ].map((dOption, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => setScheduledDate(dOption.dateStr)}
-                    className={`rounded-2xl border p-3.5 text-left transition ${
-                      scheduledDate === dOption.dateStr
-                        ? 'border-blue-500 bg-blue-50/50 ring-2 ring-blue-500/20'
-                        : 'border-gray-200 hover:border-blue-200 bg-white'
-                    }`}
-                  >
-                    <p className="text-xs font-extrabold text-gray-900">{dOption.label}</p>
-                    <p className="text-[11px] text-gray-500">{dOption.desc}</p>
-                    <p className="text-[11px] font-bold text-blue-700 mt-1">{dOption.dateStr}</p>
-                  </button>
-                ))}
+            {/* Service Date Selector */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                  1. Select Service Date
+                </label>
+                <span className="text-xs font-semibold text-blue-600">
+                  {new Date(scheduledDate + 'T00:00:00').toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                  })}
+                </span>
               </div>
+
+              {(() => {
+                const todayStr = new Date().toISOString().split('T')[0]
+                const tomDate = new Date()
+                tomDate.setDate(tomDate.getDate() + 1)
+                const tomorrowStr = tomDate.toISOString().split('T')[0]
+                const isCustom = scheduledDate !== todayStr && scheduledDate !== tomorrowStr
+
+                const formatDateDisplay = (dateString: string) => {
+                  try {
+                    const d = new Date(dateString + 'T00:00:00')
+                    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                  } catch {
+                    return dateString
+                  }
+                }
+
+                return (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {/* Today Card */}
+                      <button
+                        type="button"
+                        onClick={() => setScheduledDate(todayStr)}
+                        className={`group relative rounded-2xl border p-4 text-left transition-all duration-150 ${scheduledDate === todayStr
+                            ? 'border-blue-600 bg-blue-50/60 ring-2 ring-blue-500/20 shadow-sm'
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50 bg-white'
+                          }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-900">
+                            <span>Today</span>
+                            <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                              Fastest
+                            </span>
+                          </div>
+                          <div
+                            className={`w-4 h-4 rounded-full border flex items-center justify-center transition ${scheduledDate === todayStr
+                                ? 'border-blue-600 bg-blue-600 text-white'
+                                : 'border-gray-300 bg-white'
+                              }`}
+                          >
+                            {scheduledDate === todayStr && <Check size={10} strokeWidth={3} />}
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-gray-500 mt-0.5">Express same-day arrival</p>
+                        <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-center justify-between text-xs font-semibold">
+                          <span className="text-gray-400">Date</span>
+                          <span className={scheduledDate === todayStr ? 'text-blue-700 font-bold' : 'text-gray-700'}>
+                            {formatDateDisplay(todayStr)}
+                          </span>
+                        </div>
+                      </button>
+
+                      {/* Tomorrow Card */}
+                      <button
+                        type="button"
+                        onClick={() => setScheduledDate(tomorrowStr)}
+                        className={`group relative rounded-2xl border p-4 text-left transition-all duration-150 ${scheduledDate === tomorrowStr
+                            ? 'border-blue-600 bg-blue-50/60 ring-2 ring-blue-500/20 shadow-sm'
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50 bg-white'
+                          }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-900">
+                            <span>Tomorrow</span>
+                            <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                              Recommended
+                            </span>
+                          </div>
+                          <div
+                            className={`w-4 h-4 rounded-full border flex items-center justify-center transition ${scheduledDate === tomorrowStr
+                                ? 'border-blue-600 bg-blue-600 text-white'
+                                : 'border-gray-300 bg-white'
+                              }`}
+                          >
+                            {scheduledDate === tomorrowStr && <Check size={10} strokeWidth={3} />}
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-gray-500 mt-0.5">Standard scheduled dispatch</p>
+                        <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-center justify-between text-xs font-semibold">
+                          <span className="text-gray-400">Date</span>
+                          <span className={scheduledDate === tomorrowStr ? 'text-blue-700 font-bold' : 'text-gray-700'}>
+                            {formatDateDisplay(tomorrowStr)}
+                          </span>
+                        </div>
+                      </button>
+
+                      {/* Custom Date Card */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!isCustom) {
+                            const d = new Date()
+                            d.setDate(d.getDate() + 2)
+                            setScheduledDate(d.toISOString().split('T')[0])
+                          }
+                        }}
+                        className={`group relative rounded-2xl border p-4 text-left transition-all duration-150 ${isCustom
+                            ? 'border-blue-600 bg-blue-50/60 ring-2 ring-blue-500/20 shadow-sm'
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50 bg-white'
+                          }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-900">
+                            <span>Custom Date</span>
+                          </div>
+                          <div
+                            className={`w-4 h-4 rounded-full border flex items-center justify-center transition ${isCustom
+                                ? 'border-blue-600 bg-blue-600 text-white'
+                                : 'border-gray-300 bg-white'
+                              }`}
+                          >
+                            {isCustom && <Check size={10} strokeWidth={3} />}
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-gray-500 mt-0.5">Choose any future date</p>
+                        <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-center justify-between text-xs font-semibold">
+                          <span className="text-gray-400">Date</span>
+                          <span className={isCustom ? 'text-blue-700 font-bold' : 'text-gray-700'}>
+                            {isCustom ? formatDateDisplay(scheduledDate) : 'Pick on calendar'}
+                          </span>
+                        </div>
+                      </button>
+                    </div>
+
+                    {/* Inline Calendar input if Custom Date is picked or user wants specific date */}
+                    {isCustom && (
+                      <div className="rounded-2xl border border-blue-200 bg-blue-50/40 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in">
+                        <div className="flex items-center gap-2.5">
+                          <Calendar size={18} className="text-blue-600 shrink-0" />
+                          <div>
+                            <p className="text-xs font-bold text-gray-900">Select your preferred date</p>
+                            <p className="text-[11px] text-gray-500">Pick any date within the next 30 days</p>
+                          </div>
+                        </div>
+                        <input
+                          type="date"
+                          min={todayStr}
+                          value={scheduledDate}
+                          onChange={(e) => {
+                            if (e.target.value) setScheduledDate(e.target.value)
+                          }}
+                          className="rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-xs font-bold text-gray-800 shadow-xs focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
 
             {/* Time Slot Grid */}
-            <div>
-              <label className="text-xs font-bold text-gray-700 block mb-2">Select Time Window</label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <div className="space-y-3">
+              <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block">
+                2. Select Arrival Time Window
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
-                  'Morning (9 AM - 12 PM)',
-                  'Afternoon (12 PM - 3 PM)',
-                  'Evening (3 PM - 7 PM)',
-                  'Night (7 PM - 9 PM)'
-                ].map((slot) => (
-                  <button
-                    key={slot}
-                    type="button"
-                    onClick={() => setTimeSlot(slot)}
-                    className={`rounded-xl border p-3 text-xs font-bold transition text-center ${
-                      timeSlot === slot
-                        ? 'border-blue-600 bg-blue-600 text-white shadow-xs'
-                        : 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    {slot}
-                  </button>
-                ))}
+                  {
+                    slot: 'Morning (9 AM - 12 PM)',
+                    name: 'Morning',
+                    time: '9:00 AM – 12:00 PM',
+                    icon: Sun,
+                    badge: 'Early arrival'
+                  },
+                  {
+                    slot: 'Afternoon (12 PM - 3 PM)',
+                    name: 'Afternoon',
+                    time: '12:00 PM – 3:00 PM',
+                    icon: Clock,
+                    badge: 'Popular'
+                  },
+                  {
+                    slot: 'Evening (3 PM - 7 PM)',
+                    name: 'Evening',
+                    time: '3:00 PM – 7:00 PM',
+                    icon: Sunset,
+                    badge: 'Post-work'
+                  },
+                  {
+                    slot: 'Night (7 PM - 9 PM)',
+                    name: 'Night',
+                    time: '7:00 PM – 9:00 PM',
+                    icon: Moon,
+                    badge: 'Late slot'
+                  }
+                ].map(({ slot, name, time, icon: SlotIcon, badge }) => {
+                  const isSelected = timeSlot === slot
+                  return (
+                    <button
+                      key={slot}
+                      type="button"
+                      onClick={() => setTimeSlot(slot)}
+                      className={`relative rounded-2xl border p-4 text-left transition-all duration-150 flex flex-col justify-between ${isSelected
+                          ? 'border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-500/15'
+                          : 'border-gray-200 bg-white text-gray-800 hover:border-gray-300 hover:bg-gray-50/50'
+                        }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div
+                          className={`w-7 h-7 rounded-lg flex items-center justify-center ${isSelected ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+                            }`}
+                        >
+                          <SlotIcon size={14} />
+                        </div>
+                        <span
+                          className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${isSelected
+                              ? 'bg-white/20 text-white'
+                              : 'bg-gray-100 text-gray-600'
+                            }`}
+                        >
+                          {badge}
+                        </span>
+                      </div>
+                      <div>
+                        <p className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-gray-900'}`}>
+                          {name}
+                        </p>
+                        <p className={`text-[11px] mt-0.5 ${isSelected ? 'text-blue-100' : 'text-gray-500'}`}>
+                          {time}
+                        </p>
+                      </div>
+                    </button>
+                  )
+                })}
               </div>
+            </div>
+
+            {/* Selected Summary Bar */}
+            <div className="rounded-2xl border border-gray-100 bg-gray-50/70 p-3.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-2 text-gray-600">
+                <Clock size={14} className="text-blue-600" />
+                <span>
+                  Confirmed Appointment: <strong className="text-gray-900">{scheduledDate}</strong> during{' '}
+                  <strong className="text-blue-600">{timeSlot}</strong>
+                </span>
+              </div>
+              <span className="text-[11px] text-gray-400">Rescheduling available free of cost</span>
             </div>
           </div>
 
@@ -1239,13 +1420,12 @@ export default function CreateRequestPage() {
                       placeholder="e.g. 396001"
                       value={newPostalCode}
                       onChange={(e) => handlePinChange(e.target.value)}
-                      className={`w-full rounded-xl border p-3 text-xs font-medium outline-none transition ${
-                        isPinValid === true
+                      className={`w-full rounded-xl border p-3 text-xs font-medium outline-none transition ${isPinValid === true
                           ? 'border-emerald-500 bg-emerald-50/30'
                           : isPinValid === false
-                          ? 'border-rose-500 bg-rose-50/30'
-                          : 'border-gray-200 bg-gray-50 focus:border-blue-600 focus:bg-white'
-                      }`}
+                            ? 'border-rose-500 bg-rose-50/30'
+                            : 'border-gray-200 bg-gray-50 focus:border-blue-600 focus:bg-white'
+                        }`}
                     />
                     {isLookingUpPin && (
                       <RefreshCw className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-blue-600" size={14} />

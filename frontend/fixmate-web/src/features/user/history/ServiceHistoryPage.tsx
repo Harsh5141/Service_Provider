@@ -3,9 +3,23 @@ import { useNavigate } from 'react-router-dom'
 import {
   History, Tv, Plus, Download, ShieldCheck,
   Calendar, Wrench, Clock, Droplets, Wind, Flame,
-  Search, ChevronRight, X
+  Search, ChevronRight, X, CheckCircle2, XCircle, AlertTriangle,
+  PackageCheck, Info
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+
+interface ReplacedPart {
+  name: string
+  price: number
+  imageUrl: string
+  reason?: string
+}
+
+interface AdditionalServiceCharge {
+  title: string
+  amount: number
+  description: string
+}
 
 interface ApplianceEquipment {
   id: number
@@ -35,6 +49,10 @@ interface ServiceHistoryItem {
   notes: string
   warrantyCoverageDays: number
   nextServiceRecommendedDate: string
+  // Additional services & replaced spare parts
+  additionalCharges?: AdditionalServiceCharge[]
+  replacedParts?: ReplacedPart[]
+  approvalStatus?: 'Approved' | 'Pending Approval' | 'Rejected'
 }
 
 export default function ServiceHistoryPage() {
@@ -82,7 +100,7 @@ export default function ServiceHistoryPage() {
     }
   ])
 
-  const [historyItems] = useState<ServiceHistoryItem[]>([
+  const [historyItems, setHistoryItems] = useState<ServiceHistoryItem[]>([
     {
       id: 1,
       applianceId: 1,
@@ -90,13 +108,29 @@ export default function ServiceHistoryPage() {
       serviceCategory: 'AC & HVAC Cooling',
       serviceDone: 'Foam Jet Deep Cleaning & Gas Pressure Calibration',
       serviceDate: '2026-05-12',
-      amountPaid: 548.00,
+      amountPaid: 898.00,
       providerName: 'Rajesh Kumar',
       providerRating: 4.95,
       invoiceNumber: 'INV-2026-0548',
       notes: 'Indoor blower motor lubricated and condenser fins straightened with antibacterial spray.',
       warrantyCoverageDays: 30,
-      nextServiceRecommendedDate: '2026-11-12'
+      nextServiceRecommendedDate: '2026-11-12',
+      approvalStatus: 'Approved',
+      additionalCharges: [
+        {
+          title: 'High-Pressure Condenser Jet Descaling',
+          amount: 150.00,
+          description: 'Intense dirt buildup required dual deep-pressure chemical wash.'
+        }
+      ],
+      replacedParts: [
+        {
+          name: 'Split AC Dual Run Capacitor (45µF)',
+          price: 200.00,
+          imageUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=300&auto=format&fit=crop&q=80',
+          reason: 'Degraded voltage capacitance causing compressor delay'
+        }
+      ]
     },
     {
       id: 2,
@@ -105,13 +139,29 @@ export default function ServiceHistoryPage() {
       serviceCategory: 'Home Appliance Repair',
       serviceDone: 'Descaling & Drainage Filter Cleanout',
       serviceDate: '2026-02-28',
-      amountPaid: 399.00,
+      amountPaid: 649.00,
       providerName: 'Amit Singh',
       providerRating: 4.88,
       invoiceNumber: 'INV-2026-0399',
       notes: 'Water intake valve cleaned. Machine vibration damper calibration test passed.',
       warrantyCoverageDays: 30,
-      nextServiceRecommendedDate: '2026-08-28'
+      nextServiceRecommendedDate: '2026-08-28',
+      approvalStatus: 'Pending Approval',
+      additionalCharges: [
+        {
+          title: 'Heavy Drum Vibration Damper Calibration',
+          amount: 120.00,
+          description: 'Spin cycle stabilizer leveling and spring adjustment.'
+        }
+      ],
+      replacedParts: [
+        {
+          name: 'Heavy Duty Inlet Solenoid Valve',
+          price: 130.00,
+          imageUrl: 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=300&auto=format&fit=crop&q=80',
+          reason: 'Hard water salt clogging on intake rubber diaphragm'
+        }
+      ]
     },
     {
       id: 3,
@@ -126,9 +176,49 @@ export default function ServiceHistoryPage() {
       invoiceNumber: 'INV-2026-0650',
       notes: 'TDS calibrated to 85 ppm. UV lamp operational test passed.',
       warrantyCoverageDays: 30,
-      nextServiceRecommendedDate: '2026-07-10'
+      nextServiceRecommendedDate: '2026-07-10',
+      approvalStatus: 'Approved',
+      additionalCharges: [
+        {
+          title: 'Booster Pump Pressure Tuning',
+          amount: 80.00,
+          description: 'Adjusted diaphragm pressure to maintain pure output rate.'
+        }
+      ],
+      replacedParts: [
+        {
+          name: 'High-Density Spun Sediment Cartridge',
+          price: 180.00,
+          imageUrl: 'https://images.unsplash.com/photo-1542013936693-884638332954?w=300&auto=format&fit=crop&q=80',
+          reason: 'Micron pores exhausted after 12 months usage'
+        }
+      ]
     }
   ])
+
+  const handleApprovePartChange = (itemId: number) => {
+    setHistoryItems((prev) =>
+      prev.map((item) => {
+        if (item.id === itemId) {
+          return { ...item, approvalStatus: 'Approved' }
+        }
+        return item
+      })
+    )
+    toast.success('Additional services & replaced part changes approved successfully!')
+  }
+
+  const handleRejectPartChange = (itemId: number) => {
+    setHistoryItems((prev) =>
+      prev.map((item) => {
+        if (item.id === itemId) {
+          return { ...item, approvalStatus: 'Rejected' }
+        }
+        return item
+      })
+    )
+    toast.error('Additional charge request declined.')
+  }
 
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedApplianceFilter, setSelectedApplianceFilter] = useState<string>('ALL')
@@ -425,6 +515,121 @@ export default function ServiceHistoryPage() {
               <div className="rounded-xl bg-slate-50 p-3 text-xs text-gray-600 border border-slate-100">
                 <p className="leading-relaxed"><strong className="text-gray-700">Technician Diagnosis & Notes:</strong> {item.notes}</p>
               </div>
+
+              {/* Additional Services & Extra Charges Section */}
+              {item.additionalCharges && item.additionalCharges.length > 0 && (
+                <div className="rounded-xl bg-amber-50/70 border border-amber-200/80 p-3.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                      <Wrench size={14} className="text-amber-600" /> Additional Service Charges
+                    </span>
+                    <span className="text-xs font-black text-amber-800">
+                      +₹{item.additionalCharges.reduce((acc, c) => acc + c.amount, 0).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {item.additionalCharges.map((charge, idx) => (
+                      <div key={idx} className="flex items-start justify-between text-xs bg-white/80 p-2 rounded-lg border border-amber-100">
+                        <div>
+                          <p className="font-bold text-gray-800">{charge.title}</p>
+                          <p className="text-[11px] text-gray-500">{charge.description}</p>
+                        </div>
+                        <span className="font-extrabold text-amber-700 shrink-0 ml-2">₹{charge.amount.toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Replaced Parts Details with Image and Product Price */}
+              {item.replacedParts && item.replacedParts.length > 0 && (
+                <div className="rounded-xl bg-blue-50/60 border border-blue-200/80 p-3.5 space-y-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <PackageCheck size={16} className="text-blue-600" />
+                      <span className="text-xs font-bold text-gray-900">Replaced Appliance Parts & Components</span>
+                      <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-extrabold text-blue-700">
+                        {item.replacedParts.length} Part{item.replacedParts.length > 1 ? 's' : ''} Changed
+                      </span>
+                    </div>
+
+                    {/* Customer Side Approval Badge */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-gray-500 font-medium">Customer Status:</span>
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+                          item.approvalStatus === 'Approved'
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                            : item.approvalStatus === 'Rejected'
+                            ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                            : 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
+                        }`}
+                      >
+                        {item.approvalStatus === 'Approved' && <CheckCircle2 size={12} className="text-emerald-600" />}
+                        {item.approvalStatus === 'Rejected' && <XCircle size={12} className="text-rose-600" />}
+                        {item.approvalStatus === 'Pending Approval' && <AlertTriangle size={12} className="text-amber-600" />}
+                        {item.approvalStatus || 'Pending Approval'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Parts List: Only Image, Product Name & Product Price as requested */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {item.replacedParts.map((part, pIdx) => (
+                      <div
+                        key={pIdx}
+                        className="flex items-center gap-3 bg-white p-2.5 rounded-xl border border-blue-100 shadow-2xs hover:border-blue-300 transition"
+                      >
+                        <img
+                          src={part.imageUrl}
+                          alt={part.name}
+                          className="h-14 w-14 rounded-lg object-cover border border-gray-200 shrink-0 bg-gray-50"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-gray-900 truncate" title={part.name}>
+                            {part.name}
+                          </p>
+                          <div className="mt-1 flex items-baseline gap-1">
+                            <span className="text-[10px] text-gray-400 font-medium">Part Price:</span>
+                            <span className="text-xs font-black text-emerald-600">₹{part.price.toFixed(2)}</span>
+                          </div>
+                          {part.reason && (
+                            <p className="text-[10px] text-gray-400 truncate mt-0.5" title={part.reason}>
+                              Info: {part.reason}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* User-side Approve / Reject Button when Pending */}
+                  {item.approvalStatus === 'Pending Approval' && (
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2 border-t border-blue-100 bg-white/70 p-3 rounded-lg">
+                      <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                        <Info size={14} className="text-blue-600 shrink-0" />
+                        <span>Technician has proposed additional part replacement. Please review and approve.</span>
+                      </div>
+                      <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                        <button
+                          type="button"
+                          onClick={() => handleRejectPartChange(item.id)}
+                          className="px-3 py-1.5 rounded-lg border border-rose-200 bg-rose-50 text-xs font-bold text-rose-700 hover:bg-rose-100 transition cursor-pointer"
+                        >
+                          Decline
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleApprovePartChange(item.id)}
+                          className="inline-flex items-center gap-1 px-4 py-1.5 rounded-lg bg-emerald-600 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 transition cursor-pointer"
+                        >
+                          <CheckCircle2 size={13} /> Approve Charges & Part
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Footer Meta */}
               <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-gray-500 pt-1 border-t border-gray-100">
