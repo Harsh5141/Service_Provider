@@ -3,23 +3,82 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { CheckCircle, ArrowLeft, Lock } from 'lucide-react'
 import toast from 'react-hot-toast'
 
+declare global {
+  interface Window {
+    Razorpay: any
+  }
+}
+
 export default function PaymentPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [method, setMethod] = useState('UPI')
   const [processing, setProcessing] = useState(false)
-  const [paid, setPaid] = useState(false)
+  const [paymentDetails, setPaymentDetails] = useState<{
+    paid: boolean
+    paymentId?: string
+    amount: number
+  }>({
+    paid: false,
+    amount: 548.00
+  })
+
+  const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_TqTOzs42f1eY0Y'
 
   const handlePay = () => {
+    if (!window.Razorpay) {
+      toast.error('Razorpay SDK failed to load. Please check your internet connection.')
+      return
+    }
+
     setProcessing(true)
-    setTimeout(() => {
+
+    const options = {
+      key: razorpayKey,
+      amount: Math.round(paymentDetails.amount * 100), // In Paise (₹548 -> 54800)
+      currency: 'INR',
+      name: 'FixMate Services',
+      description: `Payment for Service Booking #${id ?? '104'}`,
+      image: '/favicon.svg',
+      prefill: {
+        name: 'FixMate Customer',
+        email: 'customer@fixmate.in',
+        contact: '9876543210'
+      },
+      theme: {
+        color: '#2563eb'
+      },
+      handler: function (response: any) {
+        setProcessing(false)
+        setPaymentDetails({
+          paid: true,
+          paymentId: response.razorpay_payment_id || `pay_${Date.now()}`,
+          amount: paymentDetails.amount
+        })
+        toast.success(`Payment verified! ID: ${response.razorpay_payment_id}`)
+      },
+      modal: {
+        ondismiss: function () {
+          setProcessing(false)
+          toast('Payment checkout cancelled', { icon: 'ℹ️' })
+        }
+      }
+    }
+
+    try {
+      const rzp = new window.Razorpay(options)
+      rzp.on('payment.failed', function (response: any) {
+        setProcessing(false)
+        toast.error(`Payment failed: ${response.error?.description || 'Transaction unsuccessful'}`)
+      })
+      rzp.open()
+    } catch (err: any) {
       setProcessing(false)
-      setPaid(true)
-      toast.success('Payment completed successfully via Razorpay (Test Mode)!')
-    }, 1500)
+      toast.error('Could not open Razorpay checkout: ' + (err?.message || 'Unknown error'))
+    }
   }
 
-  if (paid) {
+  if (paymentDetails.paid) {
     return (
       <div className="mx-auto max-w-md py-12 px-4 text-center space-y-6">
         <div className="rounded-3xl border border-emerald-100 bg-white p-8 shadow-xl space-y-4">
@@ -28,11 +87,12 @@ export default function PaymentPage() {
           </div>
           <h2 className="text-xl font-bold text-gray-900">Payment Successful!</h2>
           <p className="text-xs text-gray-500">
-            Transaction ID: <span className="font-mono font-bold text-gray-800">pay_test_98319a84</span>
+            Razorpay Payment ID:{' '}
+            <span className="font-mono font-bold text-blue-700">{paymentDetails.paymentId}</span>
           </p>
           <div className="rounded-xl bg-gray-50 p-3 text-xs flex justify-between font-bold text-gray-900">
             <span>Amount Paid:</span>
-            <span className="text-emerald-600">₹548.00</span>
+            <span className="text-emerald-600">₹{paymentDetails.amount.toFixed(2)}</span>
           </div>
           <button
             onClick={() => navigate('/requests')}

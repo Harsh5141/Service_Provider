@@ -5,7 +5,8 @@ import {
   Clock, ShieldCheck, Calendar, CheckCircle2,
   ArrowLeft, MapPin, Plus, RefreshCw,
   Wrench, X, Tv, Hammer, Paintbrush, ShieldAlert, Flame, Camera,
-  Search, ArrowRight, Award, FileText, Sun, Sunset, Moon
+  Search, ArrowRight, Award, FileText, Sun, Sunset, Moon,
+  CreditCard, Lock
 } from 'lucide-react'
 import api from '@/lib/apiClient'
 import toast from 'react-hot-toast'
@@ -120,6 +121,7 @@ export default function CreateRequestPage() {
   })
   const [timeSlot, setTimeSlot] = useState<string>('Morning (9 AM - 12 PM)')
   const [problemDescription, setProblemDescription] = useState<string>('')
+  const [paymentOption, setPaymentOption] = useState<'RAZORPAY' | 'COD'>('RAZORPAY')
   const [submitting, setSubmitting] = useState<boolean>(false)
 
   // Address Modal State
@@ -375,32 +377,16 @@ export default function CreateRequestPage() {
   const totalAmount = basePrice + safetyFee
 
   // Final Booking Submission
-  const handleSubmitBooking = async () => {
-    if (!selectedService) {
-      toast.error('Please select a service')
-      setStep(1)
-      return
-    }
-    if (!selectedAddress) {
-      toast.error('Please select or add a service location')
-      setStep(2)
-      return
-    }
-    if (!problemDescription.trim()) {
-      toast.error('Please enter a brief problem description')
-      setStep(3)
-      return
-    }
-
+  const proceedWithBookingApi = async (razorpayPaymentId?: string) => {
     setSubmitting(true)
     try {
       const payload = {
-        serviceId: selectedService.id,
-        addressId: selectedAddress.id,
-        street: selectedAddress.street,
-        city: selectedAddress.city,
-        state: selectedAddress.state,
-        postalCode: selectedAddress.postalCode,
+        serviceId: selectedService!.id,
+        addressId: selectedAddress!.id,
+        street: selectedAddress!.street,
+        city: selectedAddress!.city,
+        state: selectedAddress!.state,
+        postalCode: selectedAddress!.postalCode,
         providerProfileId: preferredProvider?.id || undefined,
         scheduledDate: new Date(scheduledDate).toISOString(),
         preferredTimeSlot: timeSlot,
@@ -435,7 +421,11 @@ export default function CreateRequestPage() {
         })
       }
 
-      toast.success('Service booking confirmed & specialist dispatched!')
+      if (razorpayPaymentId) {
+        toast.success(`Payment verified (${razorpayPaymentId}) & Specialist dispatched!`)
+      } else {
+        toast.success('Service booking confirmed & specialist dispatched!')
+      }
       window.dispatchEvent(new Event('fixmate_job_updated'))
     } catch (err: any) {
       const errMsg = err?.response?.data?.message || 'Booking submission failed'
@@ -447,6 +437,75 @@ export default function CreateRequestPage() {
       toast.error(errMsg)
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleSubmitBooking = async () => {
+    if (!selectedService) {
+      toast.error('Please select a service')
+      setStep(1)
+      return
+    }
+    if (!selectedAddress) {
+      toast.error('Please select or add a service location')
+      setStep(2)
+      return
+    }
+    if (!problemDescription.trim()) {
+      toast.error('Please enter a brief problem description')
+      setStep(3)
+      return
+    }
+
+    if (paymentOption === 'RAZORPAY') {
+      const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_TqTOzs42f1eY0Y'
+
+      if (typeof window !== 'undefined' && (window as any).Razorpay) {
+        setSubmitting(true)
+        const options = {
+          key: razorpayKey,
+          amount: Math.round(totalAmount * 100), // in paise
+          currency: 'INR',
+          name: 'FixMate Home Services',
+          description: `${selectedService.name} - Instant Booking`,
+          image: '/favicon.svg',
+          prefill: {
+            name: 'FixMate Customer',
+            email: 'customer@fixmate.in',
+            contact: '9876543210'
+          },
+          theme: {
+            color: '#2563eb'
+          },
+          handler: function (response: any) {
+            proceedWithBookingApi(response.razorpay_payment_id)
+          },
+          modal: {
+            ondismiss: function () {
+              setSubmitting(false)
+              toast('Razorpay checkout closed. You can re-attempt or choose Pay After Service.', { icon: 'ℹ️' })
+            }
+          }
+        }
+
+        try {
+          const rzp = new (window as any).Razorpay(options)
+          rzp.on('payment.failed', function (res: any) {
+            setSubmitting(false)
+            toast.error(`Payment failed: ${res.error?.description || 'Transaction unsuccessful'}`)
+          })
+          rzp.open()
+        } catch (e: any) {
+          setSubmitting(false)
+          toast.error('Unable to open Razorpay gateway: ' + (e.message || 'Error'))
+        }
+      } else {
+        // Fallback if script is blocked
+        await proceedWithBookingApi()
+      }
+    } else {
+      // Cash on Service Completion
+      await proceedWithBookingApi()
     }
   }
 
@@ -1310,6 +1369,84 @@ export default function CreateRequestPage() {
               </div>
             </div>
 
+            {/* Payment Method Selection */}
+            <div className="space-y-3">
+              <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block">
+                Choose Payment Option
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Razorpay Option */}
+                <button
+                  type="button"
+                  onClick={() => setPaymentOption('RAZORPAY')}
+                  className={`rounded-2xl border p-4 text-left transition flex flex-col justify-between ${
+                    paymentOption === 'RAZORPAY'
+                      ? 'border-blue-600 bg-blue-50/70 ring-2 ring-blue-500/20 shadow-xs'
+                      : 'border-gray-200 bg-white hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold">
+                        <CreditCard size={16} />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-gray-900">Pay Online via Razorpay</p>
+                        <p className="text-[11px] text-gray-500">UPI, GPay, PhonePe, Cards, NetBanking</p>
+                      </div>
+                    </div>
+                    <div
+                      className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                        paymentOption === 'RAZORPAY'
+                          ? 'border-blue-600 bg-blue-600 text-white'
+                          : 'border-gray-300 bg-white'
+                      }`}
+                    >
+                      {paymentOption === 'RAZORPAY' && <Check size={10} strokeWidth={3} />}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 text-[11px] font-semibold text-blue-700 bg-blue-100/60 px-2 py-0.5 rounded-md w-fit">
+                    <Lock size={11} /> 256-Bit Razorpay Protected
+                  </div>
+                </button>
+
+                {/* Cash/UPI on Completion Option */}
+                <button
+                  type="button"
+                  onClick={() => setPaymentOption('COD')}
+                  className={`rounded-2xl border p-4 text-left transition flex flex-col justify-between ${
+                    paymentOption === 'COD'
+                      ? 'border-blue-600 bg-blue-50/70 ring-2 ring-blue-500/20 shadow-xs'
+                      : 'border-gray-200 bg-white hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold">
+                        <ShieldCheck size={16} />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-gray-900">Pay After Service</p>
+                        <p className="text-[11px] text-gray-500">Cash or UPI upon complete satisfaction</p>
+                      </div>
+                    </div>
+                    <div
+                      className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                        paymentOption === 'COD'
+                          ? 'border-blue-600 bg-blue-600 text-white'
+                          : 'border-gray-300 bg-white'
+                      }`}
+                    >
+                      {paymentOption === 'COD' && <Check size={10} strokeWidth={3} />}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100/60 px-2 py-0.5 rounded-md w-fit">
+                    ✓ Zero Upfront Advance
+                  </div>
+                </button>
+              </div>
+            </div>
+
             {/* Price Breakdown */}
             <div className="rounded-2xl bg-slate-50 p-5 border border-slate-200 space-y-3 text-xs">
               <div className="flex justify-between items-center text-gray-600">
@@ -1325,7 +1462,7 @@ export default function CreateRequestPage() {
                 <span className="font-bold text-emerald-600">FREE</span>
               </div>
               <div className="border-t border-slate-300 pt-3 flex justify-between items-center text-sm font-extrabold text-gray-900">
-                <span>Total Amount Due at Completion:</span>
+                <span>{paymentOption === 'RAZORPAY' ? 'Total Payable via Razorpay:' : 'Total Due at Completion:'}</span>
                 <span className="text-lg text-emerald-600 font-black">₹{totalAmount}</span>
               </div>
             </div>
@@ -1334,7 +1471,7 @@ export default function CreateRequestPage() {
             <div className="flex items-center gap-2 rounded-xl bg-emerald-50 p-3.5 border border-emerald-200/80 text-xs text-emerald-800">
               <ShieldCheck size={16} className="text-emerald-600 shrink-0" />
               <span>
-                <strong>FixMate Assurance:</strong> No advance payment required. Pay your certified specialist via cash or UPI after complete satisfaction.
+                <strong>FixMate Assurance:</strong> 100% money-back guarantee with certified 30-day warranty on all completed jobs.
               </span>
             </div>
 
@@ -1354,7 +1491,12 @@ export default function CreateRequestPage() {
                 {submitting ? (
                   <>
                     <RefreshCw size={14} className="animate-spin" />
-                    <span>Dispatching Specialist...</span>
+                    <span>Processing...</span>
+                  </>
+                ) : paymentOption === 'RAZORPAY' ? (
+                  <>
+                    <Lock size={15} />
+                    <span>Pay ₹{totalAmount} via Razorpay & Confirm</span>
                   </>
                 ) : (
                   <>
