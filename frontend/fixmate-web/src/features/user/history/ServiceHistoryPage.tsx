@@ -4,7 +4,7 @@ import {
   History, Tv, Plus, Download, ShieldCheck,
   Calendar, Wrench, Clock, Droplets, Wind, Flame,
   Search, ChevronRight, X, CheckCircle2, XCircle, AlertTriangle,
-  PackageCheck, Info
+  PackageCheck, Info, Printer, FileText
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -264,8 +264,14 @@ export default function ServiceHistoryPage() {
     })
   }
 
+  const [selectedInvoice, setSelectedInvoice] = useState<ServiceHistoryItem | null>(null)
+
   const handleDownloadInvoice = (item: ServiceHistoryItem) => {
-    toast.success(`Tax Invoice ${item.invoiceNumber} downloaded for ${item.applianceName}!`)
+    setSelectedInvoice(item)
+  }
+
+  const handlePrintInvoice = () => {
+    window.print()
   }
 
   const filteredHistory = historyItems.filter((item) => {
@@ -757,6 +763,215 @@ export default function ServiceHistoryPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── 6. Professional Tax Invoice Modal ───────────────────────────── */}
+      {selectedInvoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in">
+          <div className="relative w-full max-w-3xl rounded-3xl bg-white shadow-2xl border border-gray-200 overflow-hidden my-8">
+            {/* Modal Header Bar with Actions */}
+            <div className="flex items-center justify-between border-b border-gray-200 bg-slate-900 px-6 py-4 text-white print:hidden">
+              <div className="flex items-center gap-2.5">
+                <FileText className="text-blue-400" size={20} />
+                <div>
+                  <h3 className="text-sm font-bold">Tax Invoice #{selectedInvoice.invoiceNumber}</h3>
+                  <p className="text-[11px] text-gray-400">Official digital receipt & warranty certificate</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handlePrintInvoice}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm transition"
+                >
+                  <Printer size={14} />
+                  <span>Print / PDF</span>
+                </button>
+                <button
+                  onClick={() => setSelectedInvoice(null)}
+                  className="rounded-xl p-1.5 text-gray-400 hover:bg-slate-800 hover:text-white transition"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Printable Invoice Container */}
+            <div id="fixmate-printable-invoice" className="p-8 space-y-6 text-gray-900 bg-white">
+              {/* Invoice Top Branding */}
+              <div className="flex flex-col sm:flex-row items-start justify-between gap-4 border-b border-gray-200 pb-6">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-base shadow-sm">
+                      F
+                    </div>
+                    <span className="text-xl font-black tracking-tight text-gray-900">
+                      Fix<span className="text-blue-600">Mate</span>
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Certified On-Demand Home Services & Maintenance</p>
+                  <p className="text-[11px] text-gray-400">GSTIN: 24AABCF1234F1Z8 · Support: support@fixmate.in</p>
+                </div>
+
+                <div className="text-left sm:text-right">
+                  <span className="inline-block px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    Paid In Full
+                  </span>
+                  <h2 className="text-xl font-black text-gray-900 mt-2">ORIGINAL TAX INVOICE</h2>
+                  <p className="text-xs font-bold text-blue-600">{selectedInvoice.invoiceNumber}</p>
+                  <p className="text-[11px] text-gray-500 mt-0.5">Date: {selectedInvoice.serviceDate}</p>
+                </div>
+              </div>
+
+              {/* Billed To & Service Professional Details */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-slate-50/70 p-4 rounded-2xl border border-slate-100 text-xs">
+                <div>
+                  <p className="font-bold text-gray-400 uppercase tracking-wider text-[10px]">Service Location / Customer</p>
+                  <p className="font-black text-gray-900 text-sm mt-1">Registered FixMate Customer</p>
+                  <p className="text-gray-600 mt-0.5">Appliance: <strong className="text-gray-900">{selectedInvoice.applianceName}</strong></p>
+                  <p className="text-gray-600">Category: {selectedInvoice.serviceCategory}</p>
+                </div>
+                <div className="sm:text-right">
+                  <p className="font-bold text-gray-400 uppercase tracking-wider text-[10px]">Certified Professional</p>
+                  <p className="font-black text-gray-900 text-sm mt-1">{selectedInvoice.providerName}</p>
+                  <p className="text-gray-600 mt-0.5">FixMate Verified Specialist (★ {selectedInvoice.providerRating.toFixed(2)})</p>
+                  <p className="text-gray-600">Warranty: <strong className="text-emerald-700">{selectedInvoice.warrantyCoverageDays}-Day Warranty Protection</strong></p>
+                </div>
+              </div>
+
+              {/* Itemized Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b-2 border-gray-200 text-gray-500 font-bold uppercase tracking-wider text-[10px]">
+                      <th className="py-2.5 px-3">Description</th>
+                      <th className="py-2.5 px-3">Type</th>
+                      <th className="py-2.5 px-3 text-right">Qty</th>
+                      <th className="py-2.5 px-3 text-right">Amount (₹)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {/* Primary Service */}
+                    <tr>
+                      <td className="py-3 px-3">
+                        <p className="font-bold text-gray-900">{selectedInvoice.serviceDone}</p>
+                        <p className="text-[11px] text-gray-500">{selectedInvoice.notes}</p>
+                      </td>
+                      <td className="py-3 px-3">
+                        <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-bold text-[10px]">
+                          Base Service
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-right font-medium">1</td>
+                      <td className="py-3 px-3 text-right font-bold text-gray-900">
+                        ₹{(
+                          selectedInvoice.amountPaid -
+                          (selectedInvoice.additionalCharges?.reduce((acc, c) => acc + c.amount, 0) || 0) -
+                          (selectedInvoice.replacedParts?.reduce((acc, p) => acc + p.price, 0) || 0)
+                        ).toFixed(2)}
+                      </td>
+                    </tr>
+
+                    {/* Additional Service Charges */}
+                    {selectedInvoice.additionalCharges?.map((charge, idx) => (
+                      <tr key={'charge-' + idx}>
+                        <td className="py-3 px-3">
+                          <p className="font-bold text-gray-900">{charge.title}</p>
+                          <p className="text-[11px] text-gray-500">{charge.description}</p>
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-700 font-bold text-[10px]">
+                            Add-on Care
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-right font-medium">1</td>
+                        <td className="py-3 px-3 text-right font-bold text-gray-900">
+                          ₹{charge.amount.toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+
+                    {/* Replaced Spare Parts */}
+                    {selectedInvoice.replacedParts?.map((part, idx) => (
+                      <tr key={'part-' + idx}>
+                        <td className="py-3 px-3">
+                          <p className="font-bold text-gray-900">{part.name}</p>
+                          <p className="text-[11px] text-gray-500">{part.reason || 'Replaced OEM genuine spare part'}</p>
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className="px-2 py-0.5 rounded bg-purple-50 text-purple-700 font-bold text-[10px]">
+                            OEM Part
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-right font-medium">1</td>
+                        <td className="py-3 px-3 text-right font-bold text-gray-900">
+                          ₹{part.price.toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Subtotal & Total Breakdown */}
+              <div className="flex flex-col sm:flex-row justify-between items-start gap-4 pt-4 border-t border-gray-200">
+                <div className="space-y-1.5 text-xs text-gray-500 max-w-sm">
+                  <div className="flex items-center gap-1.5 font-bold text-gray-700">
+                    <ShieldCheck size={14} className="text-emerald-600" />
+                    <span>FixMate Tamper-Proof Digital Warranty</span>
+                  </div>
+                  <p className="text-[11px] text-gray-500 leading-relaxed">
+                    This invoice serves as your {selectedInvoice.warrantyCoverageDays}-day repair warranty certificate.
+                    Next recommended maintenance is scheduled on <strong className="text-gray-800">{selectedInvoice.nextServiceRecommendedDate}</strong>.
+                  </p>
+                </div>
+
+                <div className="w-full sm:w-64 space-y-2 text-xs">
+                  <div className="flex justify-between text-gray-500">
+                    <span>Taxable Value</span>
+                    <span>₹{(selectedInvoice.amountPaid / 1.18).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-500">
+                    <span>CGST (9%)</span>
+                    <span>₹{((selectedInvoice.amountPaid - selectedInvoice.amountPaid / 1.18) / 2).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-500">
+                    <span>SGST (9%)</span>
+                    <span>₹{((selectedInvoice.amountPaid - selectedInvoice.amountPaid / 1.18) / 2).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-base font-black text-gray-900 border-t border-gray-200 pt-2">
+                    <span>Grand Total</span>
+                    <span className="text-blue-600">₹{selectedInvoice.amountPaid.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer Note */}
+              <div className="border-t border-dashed border-gray-200 pt-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-[10px] text-gray-400 text-center sm:text-left">
+                <span>Thank you for choosing FixMate · Computer generated invoice, no physical signature required.</span>
+                <span>Customer Care: +91 98765 43210</span>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-slate-50 border-t border-gray-100 p-4 flex items-center justify-end gap-3 print:hidden">
+              <button
+                type="button"
+                onClick={() => setSelectedInvoice(null)}
+                className="rounded-xl border border-gray-200 bg-white px-5 py-2 text-xs font-bold text-gray-700 hover:bg-gray-100 transition"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={handlePrintInvoice}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 px-5 py-2 text-xs font-bold text-white shadow-sm transition"
+              >
+                <Download size={14} />
+                <span>Save PDF / Print</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
