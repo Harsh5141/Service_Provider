@@ -92,11 +92,9 @@ export default function RequestDetailPage() {
     }
 
     loadDetail()
-    const pollInterval = setInterval(loadDetail, 2500)
     window.addEventListener('storage', loadDetail)
     window.addEventListener('fixmate_job_updated', loadDetail)
     return () => {
-      clearInterval(pollInterval)
       window.removeEventListener('storage', loadDetail)
       window.removeEventListener('fixmate_job_updated', loadDetail)
     }

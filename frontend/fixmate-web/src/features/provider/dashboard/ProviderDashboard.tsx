@@ -162,11 +162,9 @@ export default function ProviderDashboard() {
     }
 
     fetchDashboardFromDb()
-    const pollInterval = setInterval(fetchDashboardFromDb, 3000)
     window.addEventListener('storage', fetchDashboardFromDb)
     window.addEventListener('fixmate_job_updated', fetchDashboardFromDb)
     return () => {
-      clearInterval(pollInterval)
       window.removeEventListener('storage', fetchDashboardFromDb)
       window.removeEventListener('fixmate_job_updated', fetchDashboardFromDb)
     }

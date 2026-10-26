@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import {
   History, Tv, Plus, Download, ShieldCheck,
@@ -7,6 +8,7 @@ import {
   PackageCheck, Info, Printer, FileText
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import api from '@/lib/apiClient'
 
 interface ReplacedPart {
   name: string
@@ -58,143 +60,82 @@ interface ServiceHistoryItem {
 export default function ServiceHistoryPage() {
   const navigate = useNavigate()
 
-  const [appliances, setAppliances] = useState<ApplianceEquipment[]>([
-    {
-      id: 1,
-      name: 'Samsung 1.5 Ton 5-Star Split AC',
-      category: 'Air Conditioner',
-      brand: 'Samsung',
-      modelNumber: 'AR18TY5QAWK',
-      purchaseDate: '2024-04-15',
-      warrantyStatus: 'Active',
-      healthStatus: 'Seasonal Care Due Soon',
-      healthColor: 'amber',
-      lastServicedDate: '2026-05-12',
-      serviceCount: 2
-    },
-    {
-      id: 2,
-      name: 'LG 8.0 Kg Front Load Washing Machine',
-      category: 'Washing Machine',
-      brand: 'LG',
-      modelNumber: 'FHM1208ZDW',
-      purchaseDate: '2023-11-20',
-      warrantyStatus: 'Active',
-      healthStatus: 'Healthy & Calibrated',
-      healthColor: 'emerald',
-      lastServicedDate: '2026-02-28',
-      serviceCount: 1
-    },
-    {
-      id: 3,
-      name: 'Kent Grand Plus RO Water Purifier',
-      category: 'Water Purifier',
-      brand: 'Kent',
-      modelNumber: 'KENT-GP-1100',
-      purchaseDate: '2023-08-05',
-      warrantyStatus: 'Expired',
-      healthStatus: 'Filter Replacement Recommended',
-      healthColor: 'rose',
-      lastServicedDate: '2026-01-10',
-      serviceCount: 3
-    }
-  ])
+  const [appliances, setAppliances] = useState<ApplianceEquipment[]>([])
+  const [historyItems, setHistoryItems] = useState<ServiceHistoryItem[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const [historyItems, setHistoryItems] = useState<ServiceHistoryItem[]>([
-    {
-      id: 1,
-      applianceId: 1,
-      applianceName: 'Samsung 1.5 Ton Split AC (Master Bed)',
-      serviceCategory: 'AC & HVAC Cooling',
-      serviceDone: 'Foam Jet Deep Cleaning & Gas Pressure Calibration',
-      serviceDate: '2026-05-12',
-      amountPaid: 898.00,
-      providerName: 'Rajesh Kumar',
-      providerRating: 4.95,
-      invoiceNumber: 'INV-2026-0548',
-      notes: 'Indoor blower motor lubricated and condenser fins straightened with antibacterial spray.',
-      warrantyCoverageDays: 30,
-      nextServiceRecommendedDate: '2026-11-12',
-      approvalStatus: 'Approved',
-      additionalCharges: [
-        {
-          title: 'High-Pressure Condenser Jet Descaling',
-          amount: 150.00,
-          description: 'Intense dirt buildup required dual deep-pressure chemical wash.'
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const res = await api.get('/requests/my')
+        if (res.data?.data && Array.isArray(res.data.data)) {
+          // Normalize status helper
+          const getStatus = (req: any): string => {
+            if (req.statusText) return req.statusText.toLowerCase()
+            if (typeof req.status === 'string') return req.status.toLowerCase()
+            switch (Number(req.status)) {
+              case 9: return 'completed'
+              case 6: return 'invoiced'
+              default: return ''
+            }
+          }
+
+          // Only keep completed / paid / reviewed requests
+          const completedRequests = res.data.data.filter((req: any) => {
+            const st = getStatus(req)
+            return ['completed', 'paid', 'reviewed'].includes(st)
+          })
+
+          const mapped: ServiceHistoryItem[] = completedRequests.map((req: any) => {
+            const serviceDate = req.scheduledDate
+              ? new Date(req.scheduledDate).toLocaleDateString('en-IN', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric'
+                })
+              : new Date(req.createdAt).toLocaleDateString('en-IN', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric'
+                })
+
+            const nextDate = new Date()
+            nextDate.setMonth(nextDate.getMonth() + 6)
+            const nextServiceStr = nextDate.toLocaleDateString('en-IN', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric'
+            })
+
+            return {
+              id: req.id,
+              applianceId: req.applianceId || req.id,
+              applianceName: req.serviceName || 'Home Appliance Care',
+              serviceCategory: req.categoryName || 'Household Repair',
+              serviceDone: req.serviceName || 'Professional Maintenance',
+              serviceDate: serviceDate,
+              amountPaid: req.finalCost || req.estimatedCost || 0,
+              providerName: req.providerName || 'FixMate Certified Partner',
+              providerRating: req.providerRating || 4.9,
+              invoiceNumber: `INV-FXM-${req.id.toString().padStart(4, '0')}`,
+              notes: req.problemDescription || 'Standard diagnosis & repair service completed successfully.',
+              warrantyCoverageDays: 30,
+              nextServiceRecommendedDate: nextServiceStr,
+              approvalStatus: 'Approved'
+            }
+          })
+
+          setHistoryItems(mapped)
         }
-      ],
-      replacedParts: [
-        {
-          name: 'Split AC Dual Run Capacitor (45µF)',
-          price: 200.00,
-          imageUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=300&auto=format&fit=crop&q=80',
-          reason: 'Degraded voltage capacitance causing compressor delay'
-        }
-      ]
-    },
-    {
-      id: 2,
-      applianceId: 2,
-      applianceName: 'LG 8.0 Kg Front Load Washing Machine',
-      serviceCategory: 'Home Appliance Repair',
-      serviceDone: 'Descaling & Drainage Filter Cleanout',
-      serviceDate: '2026-02-28',
-      amountPaid: 649.00,
-      providerName: 'Amit Singh',
-      providerRating: 4.88,
-      invoiceNumber: 'INV-2026-0399',
-      notes: 'Water intake valve cleaned. Machine vibration damper calibration test passed.',
-      warrantyCoverageDays: 30,
-      nextServiceRecommendedDate: '2026-08-28',
-      approvalStatus: 'Pending Approval',
-      additionalCharges: [
-        {
-          title: 'Heavy Drum Vibration Damper Calibration',
-          amount: 120.00,
-          description: 'Spin cycle stabilizer leveling and spring adjustment.'
-        }
-      ],
-      replacedParts: [
-        {
-          name: 'Heavy Duty Inlet Solenoid Valve',
-          price: 130.00,
-          imageUrl: 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=300&auto=format&fit=crop&q=80',
-          reason: 'Hard water salt clogging on intake rubber diaphragm'
-        }
-      ]
-    },
-    {
-      id: 3,
-      applianceId: 3,
-      applianceName: 'Kent Grand Plus RO Water Purifier',
-      serviceCategory: 'RO Purifier & Geyser',
-      serviceDone: 'Sediment Filter & Carbon Filter Replacement',
-      serviceDate: '2026-01-10',
-      amountPaid: 650.00,
-      providerName: 'Rajesh Kumar',
-      providerRating: 4.95,
-      invoiceNumber: 'INV-2026-0650',
-      notes: 'TDS calibrated to 85 ppm. UV lamp operational test passed.',
-      warrantyCoverageDays: 30,
-      nextServiceRecommendedDate: '2026-07-10',
-      approvalStatus: 'Approved',
-      additionalCharges: [
-        {
-          title: 'Booster Pump Pressure Tuning',
-          amount: 80.00,
-          description: 'Adjusted diaphragm pressure to maintain pure output rate.'
-        }
-      ],
-      replacedParts: [
-        {
-          name: 'High-Density Spun Sediment Cartridge',
-          price: 180.00,
-          imageUrl: 'https://images.unsplash.com/photo-1542013936693-884638332954?w=300&auto=format&fit=crop&q=80',
-          reason: 'Micron pores exhausted after 12 months usage'
-        }
-      ]
+      } catch (err) {
+        console.error('Error fetching service history', err)
+      } finally {
+        setLoading(false)
+      }
     }
-  ])
+
+    fetchHistory()
+  }, [])
 
   const handleApprovePartChange = (itemId: number) => {
     setHistoryItems((prev) =>
@@ -271,7 +212,58 @@ export default function ServiceHistoryPage() {
   }
 
   const handlePrintInvoice = () => {
-    window.print()
+    const printContent = document.getElementById('fixmate-printable-invoice')
+    if (!printContent) {
+      window.print()
+      return
+    }
+
+    const printWindow = window.open('', '_blank', 'width=850,height=950')
+    if (!printWindow) {
+      window.print()
+      return
+    }
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8" />
+          <title>Invoice_${selectedInvoice?.invoiceNumber || 'FixMate'}</title>
+          <script src="https://cdn.tailwindcss.com"></script>
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 10mm 12mm;
+            }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+              color: #111827;
+              background-color: #ffffff;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              padding: 0;
+              margin: 0;
+            }
+            .invoice-wrap {
+              width: 100%;
+              max-width: 800px;
+              margin: 0 auto;
+              padding: 10px;
+            }
+          </style>
+        </head>
+        <body onload="window.focus(); setTimeout(() => { window.print(); window.close(); }, 350);">
+          <div class="invoice-wrap">
+            ${printContent.innerHTML}
+          </div>
+        </body>
+      </html>
+    `
+
+    printWindow.document.open()
+    printWindow.document.write(htmlContent)
+    printWindow.document.close()
   }
 
   const filteredHistory = historyItems.filter((item) => {
@@ -341,7 +333,9 @@ export default function ServiceHistoryPage() {
             </div>
           </div>
           <div className="text-2xl font-extrabold text-gray-900">{appliances.length} Devices</div>
-          <p className="text-[11px] text-emerald-600 font-semibold mt-0.5">100% digital records documented</p>
+          <p className="text-[11px] text-emerald-600 font-semibold mt-0.5">
+            {appliances.length > 0 ? '100% digital records documented' : 'No appliances registered yet'}
+          </p>
         </div>
 
         <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-xs transition hover:shadow-md">
@@ -351,8 +345,12 @@ export default function ServiceHistoryPage() {
               <ShieldCheck size={16} />
             </div>
           </div>
-          <div className="text-2xl font-extrabold text-blue-700">₹1,597.00</div>
-          <p className="text-[11px] text-gray-400 mt-0.5">Across 3 certified maintenance jobs</p>
+          <div className="text-2xl font-extrabold text-blue-700">
+            ₹{historyItems.reduce((acc, item) => acc + item.amountPaid, 0).toFixed(2)}
+          </div>
+          <p className="text-[11px] text-gray-400 mt-0.5">
+            Across {historyItems.length} certified maintenance job{historyItems.length !== 1 ? 's' : ''}
+          </p>
         </div>
 
         <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-xs transition hover:shadow-md">
@@ -362,8 +360,12 @@ export default function ServiceHistoryPage() {
               <Clock size={16} />
             </div>
           </div>
-          <div className="text-2xl font-extrabold text-amber-600">Kent RO Purifier</div>
-          <p className="text-[11px] text-amber-700 font-semibold mt-0.5">Recommended filter check in 5 days</p>
+          <div className="text-2xl font-extrabold text-amber-600">
+            {appliances.length > 0 ? appliances[0].name : 'All Systems Clean'}
+          </div>
+          <p className="text-[11px] text-amber-700 font-semibold mt-0.5">
+            {appliances.length > 0 ? 'Routine checkup scheduled' : 'Add equipment to start tracking'}
+          </p>
         </div>
       </div>
 
@@ -377,66 +379,84 @@ export default function ServiceHistoryPage() {
           <span className="text-xs text-gray-500">{appliances.length} Devices Connected</span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {appliances.map((app) => (
-            <div
-              key={app.id}
-              className="rounded-2xl border border-gray-200 bg-white p-5 space-y-3.5 shadow-xs transition hover:border-blue-300 hover:shadow-md"
+        {appliances.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-gray-200 bg-white p-8 text-center space-y-3">
+            <div className="mx-auto w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
+              <Tv size={24} />
+            </div>
+            <h3 className="text-sm font-bold text-gray-800">No Appliances Registered Yet</h3>
+            <p className="text-xs text-gray-500 max-w-sm mx-auto">
+              Add your air conditioners, washing machines, RO purifiers or refrigerators to track maintenance cycles and warranty dates.
+            </p>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow hover:bg-blue-700 transition"
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2.5">
-                  <div className="h-10 w-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold shrink-0">
-                    {getCategoryIcon(app.category)}
-                  </div>
-                  <div>
-                    <h3 className="text-xs sm:text-sm font-bold text-gray-900 line-clamp-1">{app.name}</h3>
-                    <p className="text-[11px] text-gray-500">{app.brand} · Model {app.modelNumber}</p>
+              <Plus size={14} /> Register Your First Appliance
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {appliances.map((app) => (
+              <div
+                key={app.id}
+                className="rounded-2xl border border-gray-200 bg-white p-5 space-y-3.5 shadow-xs transition hover:border-blue-300 hover:shadow-md"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="h-10 w-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold shrink-0">
+                      {getCategoryIcon(app.category)}
+                    </div>
+                    <div>
+                      <h3 className="text-xs sm:text-sm font-bold text-gray-900 line-clamp-1">{app.name}</h3>
+                      <p className="text-[11px] text-gray-500">{app.brand} · Model {app.modelNumber}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Status Pills */}
-              <div className="flex flex-wrap items-center gap-2">
-                <span
-                  className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold ${
-                    app.healthColor === 'emerald'
-                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                      : app.healthColor === 'amber'
-                      ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                      : 'bg-rose-50 text-rose-700 border border-rose-200'
-                  }`}
-                >
+                {/* Status Pills */}
+                <div className="flex flex-wrap items-center gap-2">
                   <span
-                    className={`h-1.5 w-1.5 rounded-full ${
+                    className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold ${
                       app.healthColor === 'emerald'
-                        ? 'bg-emerald-500'
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                         : app.healthColor === 'amber'
-                        ? 'bg-amber-500'
-                        : 'bg-rose-500'
+                        ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                        : 'bg-rose-50 text-rose-700 border border-rose-200'
                     }`}
-                  />
-                  {app.healthStatus}
-                </span>
+                  >
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${
+                        app.healthColor === 'emerald'
+                          ? 'bg-emerald-500'
+                          : app.healthColor === 'amber'
+                          ? 'bg-amber-500'
+                          : 'bg-rose-500'
+                      }`}
+                    />
+                    {app.healthStatus}
+                  </span>
 
-                <span className="rounded-md bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-600">
-                  {app.serviceCount} service{app.serviceCount !== 1 ? 's' : ''} logged
-                </span>
-              </div>
+                  <span className="rounded-md bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-600">
+                    {app.serviceCount} service{app.serviceCount !== 1 ? 's' : ''} logged
+                  </span>
+                </div>
 
-              {/* Meta details */}
-              <div className="border-t border-gray-100 pt-3 flex items-center justify-between text-xs text-gray-500">
-                <span>Last service: <strong className="text-gray-700">{app.lastServicedDate}</strong></span>
-                <button
-                  onClick={() => navigate('/requests/new')}
-                  className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700"
-                >
-                  <span>Book Service</span>
-                  <ChevronRight size={12} />
-                </button>
+                {/* Meta details */}
+                <div className="border-t border-gray-100 pt-3 flex items-center justify-between text-xs text-gray-500">
+                  <span>Last service: <strong className="text-gray-700">{app.lastServicedDate}</strong></span>
+                  <button
+                    onClick={() => navigate('/requests/new')}
+                    className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700"
+                  >
+                    <span>Book Service</span>
+                    <ChevronRight size={12} />
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── 4. Detailed Maintenance & Repair Log ──────────────────────── */}
@@ -478,8 +498,22 @@ export default function ServiceHistoryPage() {
           </div>
         </div>
 
-        <div className="space-y-4">
-          {filteredHistory.map((item) => (
+        {loading ? (
+          <div className="rounded-2xl border border-gray-200 bg-white p-12 text-center space-y-3">
+            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+            <p className="text-xs font-semibold text-gray-500">Loading your household service history...</p>
+          </div>
+        ) : filteredHistory.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50/60 p-8 text-center space-y-2">
+            <History size={24} className="mx-auto text-gray-400" />
+            <h4 className="text-xs font-bold text-gray-700">No Service Records Found</h4>
+            <p className="text-[11px] text-gray-400 max-w-xs mx-auto">
+              Completed bookings with verified diagnostic notes, invoices, and warranty coverage will appear here.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredHistory.map((item) => (
             <div
               key={item.id}
               className="relative rounded-2xl border border-gray-200/90 bg-white p-5 sm:p-6 transition-all duration-200 hover:border-blue-300 hover:shadow-md space-y-3.5"
@@ -659,7 +693,8 @@ export default function ServiceHistoryPage() {
             </div>
           ))}
         </div>
-      </div>
+      )}
+    </div>
 
       {/* ── 5. Add Appliance Modal ──────────────────────────────────────── */}
       {showAddModal && (
@@ -767,214 +802,217 @@ export default function ServiceHistoryPage() {
         </div>
       )}
 
-      {/* ── 6. Professional Tax Invoice Modal ───────────────────────────── */}
-      {selectedInvoice && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in">
-          <div className="relative w-full max-w-3xl rounded-3xl bg-white shadow-2xl border border-gray-200 overflow-hidden my-8">
-            {/* Modal Header Bar with Actions */}
-            <div className="flex items-center justify-between border-b border-gray-200 bg-slate-900 px-6 py-4 text-white print:hidden">
-              <div className="flex items-center gap-2.5">
-                <FileText className="text-blue-400" size={20} />
-                <div>
-                  <h3 className="text-sm font-bold">Tax Invoice #{selectedInvoice.invoiceNumber}</h3>
-                  <p className="text-[11px] text-gray-400">Official digital receipt & warranty certificate</p>
+      {/* ── 6. Professional Tax Invoice Modal (Portaled to document.body) ── */}
+      {selectedInvoice &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in">
+            <div className="relative w-full max-w-3xl rounded-3xl bg-white shadow-2xl border border-gray-200 overflow-hidden my-8">
+              {/* Modal Header Bar with Actions */}
+              <div className="flex items-center justify-between border-b border-gray-200 bg-slate-900 px-6 py-4 text-white print:hidden">
+                <div className="flex items-center gap-2.5">
+                  <FileText className="text-blue-400" size={20} />
+                  <div>
+                    <h3 className="text-sm font-bold">Tax Invoice #{selectedInvoice.invoiceNumber}</h3>
+                    <p className="text-[11px] text-gray-400">Official digital receipt & warranty certificate</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handlePrintInvoice}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm transition"
+                  >
+                    <Printer size={14} />
+                    <span>Print / PDF</span>
+                  </button>
+                  <button
+                    onClick={() => setSelectedInvoice(null)}
+                    className="rounded-xl p-1.5 text-gray-400 hover:bg-slate-800 hover:text-white transition cursor-pointer"
+                  >
+                    <X size={18} />
+                  </button>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handlePrintInvoice}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm transition"
-                >
-                  <Printer size={14} />
-                  <span>Print / PDF</span>
-                </button>
-                <button
-                  onClick={() => setSelectedInvoice(null)}
-                  className="rounded-xl p-1.5 text-gray-400 hover:bg-slate-800 hover:text-white transition"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-            </div>
 
-            {/* Printable Invoice Container */}
-            <div id="fixmate-printable-invoice" className="p-8 space-y-6 text-gray-900 bg-white">
-              {/* Invoice Top Branding */}
-              <div className="flex flex-col sm:flex-row items-start justify-between gap-4 border-b border-gray-200 pb-6">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-base shadow-sm">
-                      F
+              {/* Printable Invoice Container */}
+              <div id="fixmate-printable-invoice" className="p-8 space-y-6 text-gray-900 bg-white">
+                {/* Invoice Top Branding */}
+                <div className="flex flex-col sm:flex-row items-start justify-between gap-4 border-b border-gray-200 pb-6">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-base shadow-sm">
+                        F
+                      </div>
+                      <span className="text-xl font-black tracking-tight text-gray-900">
+                        Fix<span className="text-blue-600">Mate</span>
+                      </span>
                     </div>
-                    <span className="text-xl font-black tracking-tight text-gray-900">
-                      Fix<span className="text-blue-600">Mate</span>
+                    <p className="text-xs text-gray-500 mt-1">Certified On-Demand Home Services & Maintenance</p>
+                    <p className="text-[11px] text-gray-400">GSTIN: 24AABCF1234F1Z8 · Support: support@fixmate.in</p>
+                  </div>
+
+                  <div className="text-left sm:text-right">
+                    <span className="inline-block px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      Paid In Full
                     </span>
+                    <h2 className="text-xl font-black text-gray-900 mt-2">ORIGINAL TAX INVOICE</h2>
+                    <p className="text-xs font-bold text-blue-600">{selectedInvoice.invoiceNumber}</p>
+                    <p className="text-[11px] text-gray-500 mt-0.5">Date: {selectedInvoice.serviceDate}</p>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">Certified On-Demand Home Services & Maintenance</p>
-                  <p className="text-[11px] text-gray-400">GSTIN: 24AABCF1234F1Z8 · Support: support@fixmate.in</p>
                 </div>
 
-                <div className="text-left sm:text-right">
-                  <span className="inline-block px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    Paid In Full
-                  </span>
-                  <h2 className="text-xl font-black text-gray-900 mt-2">ORIGINAL TAX INVOICE</h2>
-                  <p className="text-xs font-bold text-blue-600">{selectedInvoice.invoiceNumber}</p>
-                  <p className="text-[11px] text-gray-500 mt-0.5">Date: {selectedInvoice.serviceDate}</p>
+                {/* Billed To & Service Professional Details */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-slate-50/70 p-4 rounded-2xl border border-slate-100 text-xs">
+                  <div>
+                    <p className="font-bold text-gray-400 uppercase tracking-wider text-[10px]">Service Location / Customer</p>
+                    <p className="font-black text-gray-900 text-sm mt-1">Registered FixMate Customer</p>
+                    <p className="text-gray-600 mt-0.5">Appliance: <strong className="text-gray-900">{selectedInvoice.applianceName}</strong></p>
+                    <p className="text-gray-600">Category: {selectedInvoice.serviceCategory}</p>
+                  </div>
+                  <div className="sm:text-right">
+                    <p className="font-bold text-gray-400 uppercase tracking-wider text-[10px]">Certified Professional</p>
+                    <p className="font-black text-gray-900 text-sm mt-1">{selectedInvoice.providerName}</p>
+                    <p className="text-gray-600 mt-0.5">FixMate Verified Specialist (★ {selectedInvoice.providerRating.toFixed(2)})</p>
+                    <p className="text-gray-600">Warranty: <strong className="text-emerald-700">{selectedInvoice.warrantyCoverageDays}-Day Warranty Protection</strong></p>
+                  </div>
                 </div>
-              </div>
 
-              {/* Billed To & Service Professional Details */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-slate-50/70 p-4 rounded-2xl border border-slate-100 text-xs">
-                <div>
-                  <p className="font-bold text-gray-400 uppercase tracking-wider text-[10px]">Service Location / Customer</p>
-                  <p className="font-black text-gray-900 text-sm mt-1">Registered FixMate Customer</p>
-                  <p className="text-gray-600 mt-0.5">Appliance: <strong className="text-gray-900">{selectedInvoice.applianceName}</strong></p>
-                  <p className="text-gray-600">Category: {selectedInvoice.serviceCategory}</p>
-                </div>
-                <div className="sm:text-right">
-                  <p className="font-bold text-gray-400 uppercase tracking-wider text-[10px]">Certified Professional</p>
-                  <p className="font-black text-gray-900 text-sm mt-1">{selectedInvoice.providerName}</p>
-                  <p className="text-gray-600 mt-0.5">FixMate Verified Specialist (★ {selectedInvoice.providerRating.toFixed(2)})</p>
-                  <p className="text-gray-600">Warranty: <strong className="text-emerald-700">{selectedInvoice.warrantyCoverageDays}-Day Warranty Protection</strong></p>
-                </div>
-              </div>
-
-              {/* Itemized Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="border-b-2 border-gray-200 text-gray-500 font-bold uppercase tracking-wider text-[10px]">
-                      <th className="py-2.5 px-3">Description</th>
-                      <th className="py-2.5 px-3">Type</th>
-                      <th className="py-2.5 px-3 text-right">Qty</th>
-                      <th className="py-2.5 px-3 text-right">Amount (₹)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {/* Primary Service */}
-                    <tr>
-                      <td className="py-3 px-3">
-                        <p className="font-bold text-gray-900">{selectedInvoice.serviceDone}</p>
-                        <p className="text-[11px] text-gray-500">{selectedInvoice.notes}</p>
-                      </td>
-                      <td className="py-3 px-3">
-                        <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-bold text-[10px]">
-                          Base Service
-                        </span>
-                      </td>
-                      <td className="py-3 px-3 text-right font-medium">1</td>
-                      <td className="py-3 px-3 text-right font-bold text-gray-900">
-                        ₹{(
-                          selectedInvoice.amountPaid -
-                          (selectedInvoice.additionalCharges?.reduce((acc, c) => acc + c.amount, 0) || 0) -
-                          (selectedInvoice.replacedParts?.reduce((acc, p) => acc + p.price, 0) || 0)
-                        ).toFixed(2)}
-                      </td>
-                    </tr>
-
-                    {/* Additional Service Charges */}
-                    {selectedInvoice.additionalCharges?.map((charge, idx) => (
-                      <tr key={'charge-' + idx}>
+                {/* Itemized Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b-2 border-gray-200 text-gray-500 font-bold uppercase tracking-wider text-[10px]">
+                        <th className="py-2.5 px-3">Description</th>
+                        <th className="py-2.5 px-3">Type</th>
+                        <th className="py-2.5 px-3 text-right">Qty</th>
+                        <th className="py-2.5 px-3 text-right">Amount (₹)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {/* Primary Service */}
+                      <tr>
                         <td className="py-3 px-3">
-                          <p className="font-bold text-gray-900">{charge.title}</p>
-                          <p className="text-[11px] text-gray-500">{charge.description}</p>
+                          <p className="font-bold text-gray-900">{selectedInvoice.serviceDone}</p>
+                          <p className="text-[11px] text-gray-500">{selectedInvoice.notes}</p>
                         </td>
                         <td className="py-3 px-3">
-                          <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-700 font-bold text-[10px]">
-                            Add-on Care
+                          <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-bold text-[10px]">
+                            Base Service
                           </span>
                         </td>
                         <td className="py-3 px-3 text-right font-medium">1</td>
                         <td className="py-3 px-3 text-right font-bold text-gray-900">
-                          ₹{charge.amount.toFixed(2)}
+                          ₹{(
+                            selectedInvoice.amountPaid -
+                            (selectedInvoice.additionalCharges?.reduce((acc, c) => acc + c.amount, 0) || 0) -
+                            (selectedInvoice.replacedParts?.reduce((acc, p) => acc + p.price, 0) || 0)
+                          ).toFixed(2)}
                         </td>
                       </tr>
-                    ))}
 
-                    {/* Replaced Spare Parts */}
-                    {selectedInvoice.replacedParts?.map((part, idx) => (
-                      <tr key={'part-' + idx}>
-                        <td className="py-3 px-3">
-                          <p className="font-bold text-gray-900">{part.name}</p>
-                          <p className="text-[11px] text-gray-500">{part.reason || 'Replaced OEM genuine spare part'}</p>
-                        </td>
-                        <td className="py-3 px-3">
-                          <span className="px-2 py-0.5 rounded bg-purple-50 text-purple-700 font-bold text-[10px]">
-                            OEM Part
-                          </span>
-                        </td>
-                        <td className="py-3 px-3 text-right font-medium">1</td>
-                        <td className="py-3 px-3 text-right font-bold text-gray-900">
-                          ₹{part.price.toFixed(2)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                      {/* Additional Service Charges */}
+                      {selectedInvoice.additionalCharges?.map((charge, idx) => (
+                        <tr key={'charge-' + idx}>
+                          <td className="py-3 px-3">
+                            <p className="font-bold text-gray-900">{charge.title}</p>
+                            <p className="text-[11px] text-gray-500">{charge.description}</p>
+                          </td>
+                          <td className="py-3 px-3">
+                            <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-700 font-bold text-[10px]">
+                              Add-on Care
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-right font-medium">1</td>
+                          <td className="py-3 px-3 text-right font-bold text-gray-900">
+                            ₹{charge.amount.toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
 
-              {/* Subtotal & Total Breakdown */}
-              <div className="flex flex-col sm:flex-row justify-between items-start gap-4 pt-4 border-t border-gray-200">
-                <div className="space-y-1.5 text-xs text-gray-500 max-w-sm">
-                  <div className="flex items-center gap-1.5 font-bold text-gray-700">
-                    <ShieldCheck size={14} className="text-emerald-600" />
-                    <span>FixMate Tamper-Proof Digital Warranty</span>
-                  </div>
-                  <p className="text-[11px] text-gray-500 leading-relaxed">
-                    This invoice serves as your {selectedInvoice.warrantyCoverageDays}-day repair warranty certificate.
-                    Next recommended maintenance is scheduled on <strong className="text-gray-800">{selectedInvoice.nextServiceRecommendedDate}</strong>.
-                  </p>
+                      {/* Replaced Spare Parts */}
+                      {selectedInvoice.replacedParts?.map((part, idx) => (
+                        <tr key={'part-' + idx}>
+                          <td className="py-3 px-3">
+                            <p className="font-bold text-gray-900">{part.name}</p>
+                            <p className="text-[11px] text-gray-500">{part.reason || 'Replaced OEM genuine spare part'}</p>
+                          </td>
+                          <td className="py-3 px-3">
+                            <span className="px-2 py-0.5 rounded bg-purple-50 text-purple-700 font-bold text-[10px]">
+                              OEM Part
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-right font-medium">1</td>
+                          <td className="py-3 px-3 text-right font-bold text-gray-900">
+                            ₹{part.price.toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
 
-                <div className="w-full sm:w-64 space-y-2 text-xs">
-                  <div className="flex justify-between text-gray-500">
-                    <span>Taxable Value</span>
-                    <span>₹{(selectedInvoice.amountPaid / 1.18).toFixed(2)}</span>
+                {/* Subtotal & Total Breakdown */}
+                <div className="flex flex-col sm:flex-row justify-between items-start gap-4 pt-4 border-t border-gray-200">
+                  <div className="space-y-1.5 text-xs text-gray-500 max-w-sm">
+                    <div className="flex items-center gap-1.5 font-bold text-gray-700">
+                      <ShieldCheck size={14} className="text-emerald-600" />
+                      <span>FixMate Tamper-Proof Digital Warranty</span>
+                    </div>
+                    <p className="text-[11px] text-gray-500 leading-relaxed">
+                      This invoice serves as your {selectedInvoice.warrantyCoverageDays}-day repair warranty certificate.
+                      Next recommended maintenance is scheduled on <strong className="text-gray-800">{selectedInvoice.nextServiceRecommendedDate}</strong>.
+                    </p>
                   </div>
-                  <div className="flex justify-between text-gray-500">
-                    <span>CGST (9%)</span>
-                    <span>₹{((selectedInvoice.amountPaid - selectedInvoice.amountPaid / 1.18) / 2).toFixed(2)}</span>
+
+                  <div className="w-full sm:w-64 space-y-2 text-xs">
+                    <div className="flex justify-between text-gray-500">
+                      <span>Taxable Value</span>
+                      <span>₹{(selectedInvoice.amountPaid / 1.18).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-500">
+                      <span>CGST (9%)</span>
+                      <span>₹{((selectedInvoice.amountPaid - selectedInvoice.amountPaid / 1.18) / 2).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-500">
+                      <span>SGST (9%)</span>
+                      <span>₹{((selectedInvoice.amountPaid - selectedInvoice.amountPaid / 1.18) / 2).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-base font-black text-gray-900 border-t border-gray-200 pt-2">
+                      <span>Grand Total</span>
+                      <span className="text-blue-600">₹{selectedInvoice.amountPaid.toFixed(2)}</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between text-gray-500">
-                    <span>SGST (9%)</span>
-                    <span>₹{((selectedInvoice.amountPaid - selectedInvoice.amountPaid / 1.18) / 2).toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-base font-black text-gray-900 border-t border-gray-200 pt-2">
-                    <span>Grand Total</span>
-                    <span className="text-blue-600">₹{selectedInvoice.amountPaid.toFixed(2)}</span>
-                  </div>
+                </div>
+
+                {/* Footer Note */}
+                <div className="border-t border-dashed border-gray-200 pt-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-[10px] text-gray-400 text-center sm:text-left">
+                  <span>Thank you for choosing FixMate · Computer generated invoice, no physical signature required.</span>
+                  <span>Customer Care: +91 98765 43210</span>
                 </div>
               </div>
 
-              {/* Footer Note */}
-              <div className="border-t border-dashed border-gray-200 pt-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-[10px] text-gray-400 text-center sm:text-left">
-                <span>Thank you for choosing FixMate · Computer generated invoice, no physical signature required.</span>
-                <span>Customer Care: +91 98765 43210</span>
+              {/* Modal Footer */}
+              <div className="bg-slate-50 border-t border-gray-100 p-4 flex items-center justify-end gap-3 print:hidden">
+                <button
+                  type="button"
+                  onClick={() => setSelectedInvoice(null)}
+                  className="rounded-xl border border-gray-200 bg-white px-5 py-2 text-xs font-bold text-gray-700 hover:bg-gray-100 transition cursor-pointer"
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePrintInvoice}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 px-5 py-2 text-xs font-bold text-white shadow-sm transition cursor-pointer"
+                >
+                  <Download size={14} />
+                  <span>Save PDF / Print</span>
+                </button>
               </div>
             </div>
-
-            {/* Modal Footer */}
-            <div className="bg-slate-50 border-t border-gray-100 p-4 flex items-center justify-end gap-3 print:hidden">
-              <button
-                type="button"
-                onClick={() => setSelectedInvoice(null)}
-                className="rounded-xl border border-gray-200 bg-white px-5 py-2 text-xs font-bold text-gray-700 hover:bg-gray-100 transition"
-              >
-                Close
-              </button>
-              <button
-                type="button"
-                onClick={handlePrintInvoice}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 px-5 py-2 text-xs font-bold text-white shadow-sm transition"
-              >
-                <Download size={14} />
-                <span>Save PDF / Print</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </div>
   )
 }

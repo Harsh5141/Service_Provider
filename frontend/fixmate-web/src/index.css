@@ -108,3 +108,23 @@
   .badge-info    { @apply badge bg-blue-100 text-blue-800; }
   .badge-gray    { @apply badge bg-gray-100 text-gray-800; }
 }
+
+/* ── Print Stylesheet for Invoices ────────────────────────────────────────── */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm 15mm;
+  }
+
+  /* Make sure background colors and borders render in print */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide print buttons and backdrops */
+  .print\:hidden {
+    display: none !important;
+  }
+}
+

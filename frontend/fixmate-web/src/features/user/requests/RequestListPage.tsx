@@ -73,13 +73,12 @@ export default function RequestListPage() {
 
   useEffect(() => {
     fetchMyRequests()
-    const pollInterval = setInterval(() => fetchMyRequests(false), 4000)
-    window.addEventListener('storage', () => fetchMyRequests(false))
-    window.addEventListener('fixmate_job_updated', () => fetchMyRequests(false))
+    const handleJobUpdate = () => fetchMyRequests(false)
+    window.addEventListener('storage', handleJobUpdate)
+    window.addEventListener('fixmate_job_updated', handleJobUpdate)
     return () => {
-      clearInterval(pollInterval)
-      window.removeEventListener('storage', () => fetchMyRequests(false))
-      window.removeEventListener('fixmate_job_updated', () => fetchMyRequests(false))
+      window.removeEventListener('storage', handleJobUpdate)
+      window.removeEventListener('fixmate_job_updated', handleJobUpdate)
     }
   }, [])
 
@@ -227,7 +226,6 @@ export default function RequestListPage() {
 
   // Summary Metrics Computation
   const metrics = useMemo(() => {
-    const total = requests.length
     let active = 0
     let completed = 0
     let cancelled = 0
@@ -245,6 +243,9 @@ export default function RequestListPage() {
       }
     })
 
+    // Active bookings shown on this page
+    const total = active + cancelled
+
     return { total, active, completed, cancelled, totalSpent }
   }, [requests])
 
@@ -257,18 +258,19 @@ export default function RequestListPage() {
     return Array.from(set)
   }, [requests])
 
-  // Filtered Requests
+  // Filtered Requests (Completed services are moved to Service History page)
   const filteredRequests = useMemo(() => {
     return requests.filter((r) => {
       const status = getNormalizedStatus(r)
 
+      // Completed services are moved to Service History page
+      if (['completed', 'paid', 'reviewed'].includes(status)) {
+        return false
+      }
+
       // Tab filter
       if (statusFilter === 'ACTIVE') {
         if (!['created', 'pending', 'providerassigned', 'assigned', 'provideraccepted', 'ontheway', 'arrived', 'inprogress'].includes(status)) {
-          return false
-        }
-      } else if (statusFilter === 'COMPLETED') {
-        if (!['completed', 'paid', 'reviewed'].includes(status)) {
           return false
         }
       } else if (statusFilter === 'CANCELLED') {
@@ -369,16 +371,22 @@ export default function RequestListPage() {
           <p className="text-[11px] text-gray-500 mt-0.5">Live dispatch & pending work</p>
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 shadow-xs transition hover:shadow-md">
+        <button
+          onClick={() => navigate('/history')}
+          className="text-left rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 shadow-xs transition hover:shadow-md hover:border-emerald-300 group cursor-pointer"
+        >
           <div className="flex items-center justify-between text-gray-500 mb-2">
-            <span className="text-xs font-semibold">Completed Services</span>
-            <div className="h-8 w-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+            <span className="text-xs font-semibold group-hover:text-emerald-700 transition">Completed Services</span>
+            <div className="h-8 w-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold group-hover:scale-105 transition">
               <CheckCircle2 size={16} />
             </div>
           </div>
           <div className="text-2xl font-extrabold text-emerald-600">{metrics.completed}</div>
-          <p className="text-[11px] text-gray-500 mt-0.5">Successfully serviced</p>
-        </div>
+          <p className="text-[11px] text-emerald-700 font-medium mt-0.5 flex items-center gap-1">
+            <span>View in Service History</span>
+            <ChevronRight size={12} />
+          </p>
+        </button>
 
         <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 shadow-xs transition hover:shadow-md">
           <div className="flex items-center justify-between text-gray-500 mb-2">
@@ -397,9 +405,8 @@ export default function RequestListPage() {
         {/* Status Tabs */}
         <div className="flex flex-wrap items-center gap-1.5">
           {[
-            { key: 'ALL', label: 'All Bookings', count: metrics.total },
-            { key: 'ACTIVE', label: 'Active & In-Progress', count: metrics.active },
-            { key: 'COMPLETED', label: 'Completed', count: metrics.completed },
+            { key: 'ALL', label: 'All Active Bookings', count: metrics.total },
+            { key: 'ACTIVE', label: 'In-Progress & Live', count: metrics.active },
             { key: 'CANCELLED', label: 'Cancelled', count: metrics.cancelled }
           ].map((tab) => (
             <button
@@ -421,6 +428,16 @@ export default function RequestListPage() {
               </span>
             </button>
           ))}
+          <button
+            onClick={() => navigate('/history')}
+            className="rounded-xl px-3.5 py-2 text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition flex items-center gap-2 border border-emerald-200/80"
+          >
+            <CheckCircle2 size={13} className="text-emerald-600" />
+            <span>Completed History</span>
+            <span className="rounded-md px-1.5 py-0.5 text-[10px] font-extrabold bg-emerald-200/80 text-emerald-900">
+              {metrics.completed}
+            </span>
+          </button>
         </div>
 
         {/* Search & Category Filter */}
