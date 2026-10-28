@@ -353,6 +353,52 @@ CREATE TABLE [dbo].[PlatformSettings] (
     [CreatedAt] datetime2 NOT NULL,
     [UpdatedAt] datetime2 NOT NULL
 );
+
+IF OBJECT_ID(N'[dbo].[TaxRules]', N'U') IS NULL
+CREATE TABLE [dbo].[TaxRules] (
+    [Id] int NOT NULL IDENTITY PRIMARY KEY,
+    [Name] nvarchar(150) NOT NULL,
+    [Description] nvarchar(500) NOT NULL DEFAULT N'',
+    [CalculationType] int NOT NULL DEFAULT 1,
+    [Rate] decimal(18,2) NOT NULL DEFAULT 0.00,
+    [IsActive] bit NOT NULL DEFAULT 1,
+    [IsGlobalDefault] bit NOT NULL DEFAULT 0,
+    [ServiceId] int NULL,
+    [CategoryId] int NULL,
+    [IncludeServicePriceInBase] bit NOT NULL DEFAULT 1,
+    [IncludePlatformFeeInBase] bit NOT NULL DEFAULT 0,
+    [IncludeExtraChargesInBase] bit NOT NULL DEFAULT 1,
+    [GstTreatment] int NOT NULL DEFAULT 1,
+    [HsnSacCode] nvarchar(20) NULL,
+    [CgstRate] decimal(5,2) NULL,
+    [SgstRate] decimal(5,2) NULL,
+    [IgstRate] decimal(5,2) NULL,
+    [EffectiveFrom] datetime2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    [EffectiveTo] datetime2 NULL,
+    [CreatedAt] datetime2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    [UpdatedAt] datetime2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    [IsDeleted] bit NOT NULL DEFAULT 0,
+    [DeletedAt] datetime2 NULL,
+    CONSTRAINT [FK_TaxRules_Services_ServiceId] FOREIGN KEY ([ServiceId]) REFERENCES [Services] ([Id]) ON DELETE NO ACTION,
+    CONSTRAINT [FK_TaxRules_ServiceCategories_CategoryId] FOREIGN KEY ([CategoryId]) REFERENCES [ServiceCategories] ([Id]) ON DELETE NO ACTION
+);
+
+IF OBJECT_ID(N'[dbo].[TaxAuditLogs]', N'U') IS NULL
+CREATE TABLE [dbo].[TaxAuditLogs] (
+    [Id] int NOT NULL IDENTITY PRIMARY KEY,
+    [TaxRuleId] int NULL,
+    [Action] nvarchar(50) NOT NULL,
+    [RuleName] nvarchar(150) NOT NULL DEFAULT N'',
+    [Details] nvarchar(1000) NOT NULL DEFAULT N'',
+    [OldValueJson] nvarchar(max) NOT NULL DEFAULT N'',
+    [NewValueJson] nvarchar(max) NOT NULL DEFAULT N'',
+    [PerformedByUserId] int NULL,
+    [PerformedByName] nvarchar(100) NULL,
+    [Timestamp] datetime2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    [CreatedAt] datetime2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    [UpdatedAt] datetime2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT [FK_TaxAuditLogs_TaxRules_TaxRuleId] FOREIGN KEY ([TaxRuleId]) REFERENCES [TaxRules] ([Id]) ON DELETE NO ACTION
+);
 ";
         await db.Database.ExecuteSqlRawAsync(tableCreationSql);
 
@@ -474,6 +520,62 @@ IF COL_LENGTH(N'[dbo].[ProviderDocuments]', N'RejectionReason') IS NULL
 
 IF COL_LENGTH(N'[dbo].[ProviderDocuments]', N'VerifiedAt') IS NULL
     ALTER TABLE [dbo].[ProviderDocuments] ADD [VerifiedAt] datetime2 NULL;
+
+-- ServiceRequests Tax Snapshot Columns
+IF COL_LENGTH(N'[dbo].[ServiceRequests]', N'AppliedTaxRuleId') IS NULL
+    ALTER TABLE [dbo].[ServiceRequests] ADD [AppliedTaxRuleId] int NULL;
+
+IF COL_LENGTH(N'[dbo].[ServiceRequests]', N'TaxRuleName') IS NULL
+    ALTER TABLE [dbo].[ServiceRequests] ADD [TaxRuleName] nvarchar(150) NOT NULL DEFAULT N'Exempt / No Tax';
+
+IF COL_LENGTH(N'[dbo].[ServiceRequests]', N'TaxRate') IS NULL
+    ALTER TABLE [dbo].[ServiceRequests] ADD [TaxRate] decimal(18,2) NOT NULL DEFAULT 0.00;
+
+IF COL_LENGTH(N'[dbo].[ServiceRequests]', N'TaxableBase') IS NULL
+    ALTER TABLE [dbo].[ServiceRequests] ADD [TaxableBase] decimal(18,2) NOT NULL DEFAULT 0.00;
+
+IF COL_LENGTH(N'[dbo].[ServiceRequests]', N'TaxAmount') IS NULL
+    ALTER TABLE [dbo].[ServiceRequests] ADD [TaxAmount] decimal(18,2) NOT NULL DEFAULT 0.00;
+
+IF COL_LENGTH(N'[dbo].[ServiceRequests]', N'CgstRate') IS NULL
+    ALTER TABLE [dbo].[ServiceRequests] ADD [CgstRate] decimal(5,2) NOT NULL DEFAULT 0.00;
+
+IF COL_LENGTH(N'[dbo].[ServiceRequests]', N'CgstAmount') IS NULL
+    ALTER TABLE [dbo].[ServiceRequests] ADD [CgstAmount] decimal(18,2) NOT NULL DEFAULT 0.00;
+
+IF COL_LENGTH(N'[dbo].[ServiceRequests]', N'SgstRate') IS NULL
+    ALTER TABLE [dbo].[ServiceRequests] ADD [SgstRate] decimal(5,2) NOT NULL DEFAULT 0.00;
+
+IF COL_LENGTH(N'[dbo].[ServiceRequests]', N'SgstAmount') IS NULL
+    ALTER TABLE [dbo].[ServiceRequests] ADD [SgstAmount] decimal(18,2) NOT NULL DEFAULT 0.00;
+
+IF COL_LENGTH(N'[dbo].[ServiceRequests]', N'IgstRate') IS NULL
+    ALTER TABLE [dbo].[ServiceRequests] ADD [IgstRate] decimal(5,2) NOT NULL DEFAULT 0.00;
+
+IF COL_LENGTH(N'[dbo].[ServiceRequests]', N'IgstAmount') IS NULL
+    ALTER TABLE [dbo].[ServiceRequests] ADD [IgstAmount] decimal(18,2) NOT NULL DEFAULT 0.00;
+
+IF COL_LENGTH(N'[dbo].[ServiceRequests]', N'HsnSacCode') IS NULL
+    ALTER TABLE [dbo].[ServiceRequests] ADD [HsnSacCode] nvarchar(20) NULL DEFAULT N'9987';
+
+IF COL_LENGTH(N'[dbo].[ServiceRequests]', N'PlaceOfSupply') IS NULL
+    ALTER TABLE [dbo].[ServiceRequests] ADD [PlaceOfSupply] nvarchar(100) NOT NULL DEFAULT N'Gujarat (24)';
+
+IF COL_LENGTH(N'[dbo].[ServiceRequests]', N'SupplierGstin') IS NULL
+    ALTER TABLE [dbo].[ServiceRequests] ADD [SupplierGstin] nvarchar(20) NOT NULL DEFAULT N'24AAACF1234F1Z5';
+
+IF COL_LENGTH(N'[dbo].[ServiceRequests]', N'InvoiceNumber') IS NULL
+    ALTER TABLE [dbo].[ServiceRequests] ADD [InvoiceNumber] nvarchar(50) NOT NULL DEFAULT N'';
+
+IF COL_LENGTH(N'[dbo].[ServiceRequests]', N'InvoicedAt') IS NULL
+    ALTER TABLE [dbo].[ServiceRequests] ADD [InvoicedAt] datetime2 NULL;
+
+-- Payments Tax Alignment Columns
+IF COL_LENGTH(N'[dbo].[Payments]', N'TaxAmount') IS NULL
+    ALTER TABLE [dbo].[Payments] ADD [TaxAmount] decimal(18,2) NOT NULL DEFAULT 0.00;
+
+IF COL_LENGTH(N'[dbo].[Payments]', N'TaxableAmount') IS NULL
+    ALTER TABLE [dbo].[Payments] ADD [TaxableAmount] decimal(18,2) NOT NULL DEFAULT 0.00;
 ";
         await db.Database.ExecuteSqlRawAsync(columnSyncSql);
 

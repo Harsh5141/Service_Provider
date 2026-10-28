@@ -30,7 +30,17 @@ public class AppDbSeeder
             ("ServiceChargeType", "Percentage", "Calculation mode for FixMate Service Charge: 'Percentage' or 'Fixed'", "string"),
             ("GlobalPlatformFee", "49.00", "Legacy fixed platform fee (in INR)", "decimal"),
             ("GlobalCommissionRate", "0.15", "Platform commission rate deducted from service earnings (e.g. 0.15 = 15%)", "decimal"),
-            ("PlatformFeeEnabled", "true", "Whether platform fee is enabled globally", "boolean")
+            ("PlatformFeeEnabled", "true", "Whether platform fee is enabled globally", "boolean"),
+            // Configurable Tax System Settings
+            ("GlobalTaxEnabled", "true", "Whether Global Tax calculation is enabled across the platform", "boolean"),
+            ("GlobalTaxRate", "18.00", "Default global tax rate percentage (e.g. 18.00 = 18%)", "decimal"),
+            ("TaxCalculationType", "Percentage", "Calculation mode for taxes: 'Percentage' or 'Fixed'", "string"),
+            ("AllowCustomTaxOverrides", "true", "Whether custom service/category tax rules override the global rule", "boolean"),
+            ("TaxOnPlatformFee", "false", "Whether platform/service charge is subject to customer tax base", "boolean"),
+            ("TaxOnExtraCharges", "true", "Whether approved extra charges are included in customer taxable base", "boolean"),
+            ("SupplierState", "Gujarat", "Registered home state of supplier for GST place-of-supply resolution", "string"),
+            ("SupplierGstin", "24AAACF1234F1Z5", "FixMate registered GSTIN", "string"),
+            ("SupplierLegalName", "FixMate Home Solutions Private Limited", "FixMate registered entity name for Tax Invoices", "string")
         };
 
         foreach (var (key, val, desc, dType) in defaultSettings)
@@ -50,6 +60,78 @@ public class AppDbSeeder
             }
         }
         await _context.SaveChangesAsync();
+
+        // ── 0b. Seed Default Global and Category Tax Rules ───────────────────────
+        if (!await _context.TaxRules.AnyAsync())
+        {
+            var defaultGlobalRule = new TaxRule
+            {
+                Name = "GST Standard 18% (Services)",
+                Description = "Standard GST applicable to domestic maintenance, electrical, and repair services",
+                CalculationType = TaxCalculationType.Percentage,
+                Rate = 18.00m,
+                IsActive = true,
+                IsGlobalDefault = true,
+                IncludeServicePriceInBase = true,
+                IncludePlatformFeeInBase = false,
+                IncludeExtraChargesInBase = true,
+                GstTreatment = GstType.Standard,
+                HsnSacCode = "9987",
+                CgstRate = 9.00m,
+                SgstRate = 9.00m,
+                IgstRate = 18.00m,
+                EffectiveFrom = DateTime.UtcNow.AddYears(-1),
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            _context.TaxRules.Add(defaultGlobalRule);
+            await _context.SaveChangesAsync();
+
+            // Custom reduced tax rule for Deep Cleaning & Sanitization (e.g. 5% or 12%)
+            var cleaningCategory = await _context.ServiceCategories.FirstOrDefaultAsync(c => c.Name.Contains("Cleaning"));
+            if (cleaningCategory != null)
+            {
+                var customCleaningRule = new TaxRule
+                {
+                    Name = "Cleaning Services Concessional GST 12%",
+                    Description = "Concessional tax bracket for residential deep sanitization and cleaning",
+                    CalculationType = TaxCalculationType.Percentage,
+                    Rate = 12.00m,
+                    IsActive = true,
+                    IsGlobalDefault = false,
+                    CategoryId = cleaningCategory.Id,
+                    IncludeServicePriceInBase = true,
+                    IncludePlatformFeeInBase = false,
+                    IncludeExtraChargesInBase = true,
+                    GstTreatment = GstType.Standard,
+                    HsnSacCode = "9985",
+                    CgstRate = 6.00m,
+                    SgstRate = 6.00m,
+                    IgstRate = 12.00m,
+                    EffectiveFrom = DateTime.UtcNow.AddMonths(-6),
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                _context.TaxRules.Add(customCleaningRule);
+            }
+
+            // Seed Initial Audit Log
+            _context.TaxAuditLogs.Add(new TaxAuditLog
+            {
+                TaxRuleId = defaultGlobalRule.Id,
+                Action = "Create",
+                RuleName = defaultGlobalRule.Name,
+                Details = "Default GST 18% system tax rule seeded with CGST 9% and SGST 9%",
+                OldValueJson = "{}",
+                NewValueJson = System.Text.Json.JsonSerializer.Serialize(new { defaultGlobalRule.Rate, defaultGlobalRule.IsActive, defaultGlobalRule.IsGlobalDefault }),
+                PerformedByName = "System Seeder",
+                Timestamp = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+        }
 
         // ── 0. Clean Up Old Demo Providers ───────────────────────────────────────
         var oldProviderEmails = new[]

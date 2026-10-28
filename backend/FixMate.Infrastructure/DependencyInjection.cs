@@ -51,6 +51,7 @@ public static class DependencyInjection
         services.AddScoped<IGeoLocationService,        FixMate.Infrastructure.Services.Geo.GeoLocationService>();
         services.AddScoped<IProviderMatchingService,   FixMate.Infrastructure.Services.Matching.ProviderMatchingService>();
         services.AddScoped<IPaymentService,            FixMate.Infrastructure.Services.Payment.RazorpayPaymentService>();
+        services.AddScoped<ITaxCalculationService,     FixMate.Infrastructure.Services.Tax.TaxCalculationService>();
         // services.AddScoped<IStorageService,   CloudinaryStorageService>();
         // services.AddScoped<IPaymentService,   RazorpayPaymentService>();
         // services.AddScoped<IEmailService,     MailKitEmailService>();

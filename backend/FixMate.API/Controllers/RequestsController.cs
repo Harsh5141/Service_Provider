@@ -19,15 +19,18 @@ public class RequestsController : ControllerBase
     private readonly AppDbContext _context;
     private readonly IProviderMatchingService _matchingService;
     private readonly IGeoLocationService _geoLocationService;
+    private readonly ITaxCalculationService _taxService;
 
     public RequestsController(
         AppDbContext context,
         IProviderMatchingService matchingService,
-        IGeoLocationService geoLocationService)
+        IGeoLocationService geoLocationService,
+        ITaxCalculationService taxService)
     {
         _context = context;
         _matchingService = matchingService;
         _geoLocationService = geoLocationService;
+        _taxService = taxService;
     }
 
     private int GetCurrentUserId()
@@ -163,7 +166,19 @@ public class RequestsController : ControllerBase
 
         decimal commissionAmount = Math.Round(baseCost * commRate, 2);
         decimal providerEarnings = Math.Round(baseCost - commissionAmount, 2);
-        decimal totalAmount = baseCost + serviceChargeAmount;
+
+        // Server-Side Tax Calculation Engine (Never trust frontend tax values)
+        var taxResult = await _taxService.CalculateTaxAsync(new Application.DTOs.Tax.TaxCalculationRequest
+        {
+            ServiceId = service.Id,
+            ServicePrice = baseCost,
+            PlatformFee = serviceChargeAmount,
+            ExtraCharges = 0.00m,
+            DiscountAmount = 0.00m,
+            CustomerState = address.State
+        }, ct);
+
+        decimal totalAmount = taxResult.TotalPayable;
 
         var request = new ServiceRequest
         {
@@ -181,6 +196,23 @@ public class RequestsController : ControllerBase
             ProviderEarnings = providerEarnings,
             PayoutStatus = "Pending",
             TotalAmount = totalAmount,
+
+            // Tax Financial Snapshot (Immutable)
+            AppliedTaxRuleId = taxResult.AppliedTaxRuleId,
+            TaxRuleName = taxResult.TaxRuleName,
+            TaxRate = taxResult.TaxRate,
+            TaxableBase = taxResult.TaxableBase,
+            TaxAmount = taxResult.TaxAmount,
+            CgstRate = taxResult.CgstRate,
+            CgstAmount = taxResult.CgstAmount,
+            SgstRate = taxResult.SgstRate,
+            SgstAmount = taxResult.SgstAmount,
+            IgstRate = taxResult.IgstRate,
+            IgstAmount = taxResult.IgstAmount,
+            HsnSacCode = taxResult.HsnSacCode,
+            PlaceOfSupply = taxResult.PlaceOfSupply,
+            SupplierGstin = "24AAACF1234F1Z5",
+
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
             ProviderProfileId = assignedProviderId,
@@ -191,6 +223,10 @@ public class RequestsController : ControllerBase
 
         _context.ServiceRequests.Add(request);
         await _context.SaveChangesAsync(ct);
+
+        // Generate official Tax Invoice Number
+        request.InvoiceNumber = $"INV-FXM-{request.Id.ToString().PadLeft(5, '0')}";
+        request.InvoicedAt = DateTime.UtcNow;
 
         // Add history log
         var historyNote = assignedProfile != null
@@ -222,6 +258,8 @@ public class RequestsController : ControllerBase
             Amount = request.TotalAmount,
             PlatformFee = request.PlatformFee,
             ProviderPayout = request.ProviderEarnings,
+            TaxAmount = request.TaxAmount,
+            TaxableAmount = request.TaxableBase,
             Method = isOnline ? Domain.Enums.PaymentMethod.Online : Domain.Enums.PaymentMethod.Cash,
             Status = !string.IsNullOrEmpty(dto.RazorpayPaymentId) ? Domain.Enums.PaymentStatus.Completed : Domain.Enums.PaymentStatus.Pending,
             RazorpayOrderId = !string.IsNullOrEmpty(dto.RazorpayPaymentId) ? $"order_{dto.RazorpayPaymentId}" : $"order_req_{request.Id}",
@@ -274,6 +312,22 @@ public class RequestsController : ControllerBase
             ProviderEarnings = request.ProviderEarnings,
             PayoutStatus = request.PayoutStatus,
             PayoutDate = request.PayoutDate,
+            AppliedTaxRuleId = request.AppliedTaxRuleId,
+            TaxRuleName = request.TaxRuleName,
+            TaxRate = request.TaxRate,
+            TaxableBase = request.TaxableBase,
+            TaxAmount = request.TaxAmount,
+            CgstRate = request.CgstRate,
+            CgstAmount = request.CgstAmount,
+            SgstRate = request.SgstRate,
+            SgstAmount = request.SgstAmount,
+            IgstRate = request.IgstRate,
+            IgstAmount = request.IgstAmount,
+            HsnSacCode = request.HsnSacCode,
+            PlaceOfSupply = request.PlaceOfSupply,
+            SupplierGstin = request.SupplierGstin,
+            InvoiceNumber = request.InvoiceNumber,
+            InvoicedAt = request.InvoicedAt,
             CreatedAt = request.CreatedAt,
             UpdatedAt = request.UpdatedAt
         };
@@ -296,6 +350,7 @@ public class RequestsController : ControllerBase
     public async Task<ActionResult<ApiResponse<object>>> CalculatePrice(
         [FromQuery] int serviceId,
         [FromQuery] decimal? customBasePrice,
+        [FromQuery] string? state,
         CancellationToken ct)
     {
         var service = await _context.Services.FirstOrDefaultAsync(s => s.Id == serviceId, ct);
@@ -324,7 +379,17 @@ public class RequestsController : ControllerBase
         }
 
         decimal serviceChargeAmount = serviceChargeEnabled ? Math.Round(basePrice * serviceChargeRate, 2) : 0.00m;
-        decimal totalPayable = basePrice + serviceChargeAmount;
+
+        // Calculate Tax Breakdown
+        var taxResult = await _taxService.CalculateTaxAsync(new Application.DTOs.Tax.TaxCalculationRequest
+        {
+            ServiceId = service.Id,
+            ServicePrice = basePrice,
+            PlatformFee = serviceChargeAmount,
+            ExtraCharges = 0.00m,
+            DiscountAmount = 0.00m,
+            CustomerState = state
+        }, ct);
 
         return Ok(ApiResponse<object>.Ok(new
         {
@@ -334,7 +399,24 @@ public class RequestsController : ControllerBase
             serviceChargeEnabled,
             serviceChargePercentage = Math.Round(serviceChargeRate * 100, 2),
             serviceChargeAmount,
-            totalPayable
+            taxEnabled = taxResult.TaxEnabled,
+            appliedTaxRuleId = taxResult.AppliedTaxRuleId,
+            taxRuleName = taxResult.TaxRuleName,
+            taxRate = taxResult.TaxRate,
+            taxableBase = taxResult.TaxableBase,
+            taxAmount = taxResult.TaxAmount,
+            cgstRate = taxResult.CgstRate,
+            cgstAmount = taxResult.CgstAmount,
+            sgstRate = taxResult.SgstRate,
+            sgstAmount = taxResult.SgstAmount,
+            igstRate = taxResult.IgstRate,
+            igstAmount = taxResult.IgstAmount,
+            isInterState = taxResult.IsInterState,
+            placeOfSupply = taxResult.PlaceOfSupply,
+            hsnSacCode = taxResult.HsnSacCode,
+            totalPayable = taxResult.TotalPayable,
+            appliedMode = taxResult.AppliedMode,
+            explanation = taxResult.Explanation
         }, "Price breakdown calculated successfully"));
     }
 
@@ -431,6 +513,30 @@ public class RequestsController : ControllerBase
                 ProblemDescription = r.ProblemDescription,
                 EstimatedCost = r.TotalAmount,
                 FinalCost = r.TotalAmount,
+                ServicePrice = r.BaseAmount,
+                ServiceChargeRate = r.ServiceChargeRate,
+                ServiceChargeAmount = r.PlatformFee,
+                CommissionRate = r.CommissionRate,
+                CommissionAmount = r.CommissionAmount,
+                ProviderEarnings = r.ProviderEarnings,
+                PayoutStatus = r.PayoutStatus,
+                PayoutDate = r.PayoutDate,
+                AppliedTaxRuleId = r.AppliedTaxRuleId,
+                TaxRuleName = r.TaxRuleName,
+                TaxRate = r.TaxRate,
+                TaxableBase = r.TaxableBase,
+                TaxAmount = r.TaxAmount,
+                CgstRate = r.CgstRate,
+                CgstAmount = r.CgstAmount,
+                SgstRate = r.SgstRate,
+                SgstAmount = r.SgstAmount,
+                IgstRate = r.IgstRate,
+                IgstAmount = r.IgstAmount,
+                HsnSacCode = r.HsnSacCode,
+                PlaceOfSupply = r.PlaceOfSupply,
+                SupplierGstin = r.SupplierGstin,
+                InvoiceNumber = r.InvoiceNumber,
+                InvoicedAt = r.InvoicedAt,
                 CancellationReason = r.CancellationReason,
                 CreatedAt = r.CreatedAt,
                 UpdatedAt = r.UpdatedAt
@@ -489,6 +595,22 @@ public class RequestsController : ControllerBase
                 ProviderEarnings = r.ProviderEarnings,
                 PayoutStatus = r.PayoutStatus,
                 PayoutDate = r.PayoutDate,
+                AppliedTaxRuleId = r.AppliedTaxRuleId,
+                TaxRuleName = r.TaxRuleName,
+                TaxRate = r.TaxRate,
+                TaxableBase = r.TaxableBase,
+                TaxAmount = r.TaxAmount,
+                CgstRate = r.CgstRate,
+                CgstAmount = r.CgstAmount,
+                SgstRate = r.SgstRate,
+                SgstAmount = r.SgstAmount,
+                IgstRate = r.IgstRate,
+                IgstAmount = r.IgstAmount,
+                HsnSacCode = r.HsnSacCode,
+                PlaceOfSupply = r.PlaceOfSupply,
+                SupplierGstin = r.SupplierGstin,
+                InvoiceNumber = r.InvoiceNumber,
+                InvoicedAt = r.InvoicedAt,
                 CancellationReason = r.CancellationReason,
                 CreatedAt = r.CreatedAt,
                 UpdatedAt = r.UpdatedAt

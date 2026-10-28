@@ -26,6 +26,22 @@ public class ServiceRequestConfiguration : IEntityTypeConfiguration<ServiceReque
         builder.Property(r => r.PayoutStatus).HasMaxLength(50);
         builder.Property(r => r.DistanceKm).HasPrecision(9, 2);
 
+        // Tax Snapshot Configuration
+        builder.Property(r => r.TaxRuleName).HasMaxLength(150);
+        builder.Property(r => r.TaxRate).HasPrecision(18, 2);
+        builder.Property(r => r.TaxableBase).HasPrecision(18, 2);
+        builder.Property(r => r.TaxAmount).HasPrecision(18, 2);
+        builder.Property(r => r.CgstRate).HasPrecision(5, 2);
+        builder.Property(r => r.CgstAmount).HasPrecision(18, 2);
+        builder.Property(r => r.SgstRate).HasPrecision(5, 2);
+        builder.Property(r => r.SgstAmount).HasPrecision(18, 2);
+        builder.Property(r => r.IgstRate).HasPrecision(5, 2);
+        builder.Property(r => r.IgstAmount).HasPrecision(18, 2);
+        builder.Property(r => r.HsnSacCode).HasMaxLength(20);
+        builder.Property(r => r.PlaceOfSupply).HasMaxLength(100);
+        builder.Property(r => r.SupplierGstin).HasMaxLength(20);
+        builder.Property(r => r.InvoiceNumber).HasMaxLength(50);
+
         builder.Property(r => r.RowVersion).IsRowVersion();
 
         builder.HasOne(r => r.Customer)

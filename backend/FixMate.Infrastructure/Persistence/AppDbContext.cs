@@ -28,6 +28,8 @@ public class AppDbContext : DbContext
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<PlatformSetting> PlatformSettings => Set<PlatformSetting>();
+    public DbSet<TaxRule> TaxRules => Set<TaxRule>();
+    public DbSet<TaxAuditLog> TaxAuditLogs => Set<TaxAuditLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

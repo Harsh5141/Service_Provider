@@ -55,6 +55,20 @@ interface ServiceHistoryItem {
   additionalCharges?: AdditionalServiceCharge[]
   replacedParts?: ReplacedPart[]
   approvalStatus?: 'Approved' | 'Pending Approval' | 'Rejected'
+  // Tax snapshot fields
+  taxRuleName?: string
+  taxRate?: number
+  taxableBase?: number
+  taxAmount?: number
+  cgstRate?: number
+  cgstAmount?: number
+  sgstRate?: number
+  sgstAmount?: number
+  igstRate?: number
+  igstAmount?: number
+  hsnSacCode?: string
+  placeOfSupply?: string
+  supplierGstin?: string
 }
 
 export default function ServiceHistoryPage() {
@@ -117,11 +131,24 @@ export default function ServiceHistoryPage() {
               amountPaid: req.finalCost || req.estimatedCost || 0,
               providerName: req.providerName || 'FixMate Certified Partner',
               providerRating: req.providerRating || 4.9,
-              invoiceNumber: `INV-FXM-${req.id.toString().padStart(4, '0')}`,
+              invoiceNumber: req.invoiceNumber || `INV-FXM-${req.id.toString().padStart(4, '0')}`,
               notes: req.problemDescription || 'Standard diagnosis & repair service completed successfully.',
               warrantyCoverageDays: 30,
               nextServiceRecommendedDate: nextServiceStr,
-              approvalStatus: 'Approved'
+              approvalStatus: 'Approved',
+              taxRuleName: req.taxRuleName,
+              taxRate: req.taxRate,
+              taxableBase: req.taxableBase,
+              taxAmount: req.taxAmount,
+              cgstRate: req.cgstRate,
+              cgstAmount: req.cgstAmount,
+              sgstRate: req.sgstRate,
+              sgstAmount: req.sgstAmount,
+              igstRate: req.igstRate,
+              igstAmount: req.igstAmount,
+              hsnSacCode: req.hsnSacCode,
+              placeOfSupply: req.placeOfSupply,
+              supplierGstin: req.supplierGstin
             }
           })
 
@@ -964,19 +991,55 @@ export default function ServiceHistoryPage() {
                     </p>
                   </div>
 
-                  <div className="w-full sm:w-64 space-y-2 text-xs">
+                  <div className="w-full sm:w-72 space-y-2 text-xs">
                     <div className="flex justify-between text-gray-500">
-                      <span>Taxable Value</span>
-                      <span>₹{(selectedInvoice.amountPaid / 1.18).toFixed(2)}</span>
+                      <span>Taxable Value {selectedInvoice.hsnSacCode ? `(SAC: ${selectedInvoice.hsnSacCode})` : ''}</span>
+                      <span>₹{(selectedInvoice.taxableBase ?? (selectedInvoice.amountPaid / 1.18)).toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between text-gray-500">
-                      <span>CGST (9%)</span>
-                      <span>₹{((selectedInvoice.amountPaid - selectedInvoice.amountPaid / 1.18) / 2).toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-gray-500">
-                      <span>SGST (9%)</span>
-                      <span>₹{((selectedInvoice.amountPaid - selectedInvoice.amountPaid / 1.18) / 2).toFixed(2)}</span>
-                    </div>
+
+                    {/* Tax Breakdown based on saved snapshot */}
+                    {selectedInvoice.taxAmount !== undefined && selectedInvoice.taxAmount > 0 ? (
+                      <>
+                        {selectedInvoice.igstAmount !== undefined && selectedInvoice.igstAmount > 0 ? (
+                          <div className="flex justify-between text-gray-500">
+                            <span>IGST ({selectedInvoice.igstRate || selectedInvoice.taxRate}%)</span>
+                            <span>₹{selectedInvoice.igstAmount.toFixed(2)}</span>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex justify-between text-gray-500">
+                              <span>CGST ({selectedInvoice.cgstRate || (selectedInvoice.taxRate ? selectedInvoice.taxRate / 2 : 9)}%)</span>
+                              <span>₹{(selectedInvoice.cgstAmount ?? (selectedInvoice.taxAmount / 2)).toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between text-gray-500">
+                              <span>SGST ({selectedInvoice.sgstRate || (selectedInvoice.taxRate ? selectedInvoice.taxRate / 2 : 9)}%)</span>
+                              <span>₹{(selectedInvoice.sgstAmount ?? (selectedInvoice.taxAmount / 2)).toFixed(2)}</span>
+                            </div>
+                          </>
+                        )}
+                        <div className="flex justify-between text-[11px] text-gray-400 italic">
+                          <span>Rule: {selectedInvoice.taxRuleName || 'Standard GST'}</span>
+                          <span>POS: {selectedInvoice.placeOfSupply || 'State of Supply'}</span>
+                        </div>
+                      </>
+                    ) : selectedInvoice.taxAmount === 0 ? (
+                      <div className="flex justify-between text-emerald-600 font-medium">
+                        <span>Tax Rate ({selectedInvoice.taxRuleName || 'Exempt'})</span>
+                        <span>₹0.00 (Zero-Rated / Exempt)</span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex justify-between text-gray-500">
+                          <span>CGST (9%)</span>
+                          <span>₹{((selectedInvoice.amountPaid - selectedInvoice.amountPaid / 1.18) / 2).toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-gray-500">
+                          <span>SGST (9%)</span>
+                          <span>₹{((selectedInvoice.amountPaid - selectedInvoice.amountPaid / 1.18) / 2).toFixed(2)}</span>
+                        </div>
+                      </>
+                    )}
+
                     <div className="flex justify-between text-base font-black text-gray-900 border-t border-gray-200 pt-2">
                       <span>Grand Total</span>
                       <span className="text-blue-600">₹{selectedInvoice.amountPaid.toFixed(2)}</span>

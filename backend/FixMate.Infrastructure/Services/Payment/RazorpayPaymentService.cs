@@ -131,6 +131,8 @@ public class RazorpayPaymentService : IPaymentService
                 Amount = totalAmount,
                 PlatformFee = platformFee,
                 ProviderPayout = providerEarnings,
+                TaxAmount = request.TaxAmount,
+                TaxableAmount = request.TaxableBase,
                 Method = PaymentMethod.Online,
                 Status = PaymentStatus.Pending,
                 CreatedAt = DateTime.UtcNow,
@@ -144,6 +146,8 @@ public class RazorpayPaymentService : IPaymentService
             existingPayment.Amount = totalAmount;
             existingPayment.PlatformFee = platformFee;
             existingPayment.ProviderPayout = providerEarnings;
+            existingPayment.TaxAmount = request.TaxAmount;
+            existingPayment.TaxableAmount = request.TaxableBase;
             existingPayment.Status = PaymentStatus.Pending;
             existingPayment.UpdatedAt = DateTime.UtcNow;
         }

@@ -3,7 +3,7 @@ import { clsx } from 'clsx'
 import {
   LayoutDashboard, ListChecks, PlusCircle, History,
   User, Wrench, DollarSign, Star, AlertCircle, Settings,
-  Users, ShieldCheck
+  Users, ShieldCheck, Calculator
 } from 'lucide-react'
 
 type Role = 'User' | 'Provider' | 'Admin'
@@ -24,6 +24,7 @@ const navConfig: Record<Role, { label: string; to: string; icon: React.ReactNode
   ],
   Admin: [
     { label: 'Dashboard', to: '/admin', icon: <LayoutDashboard size={18} /> },
+    { label: 'Tax Management', to: '/admin/tax', icon: <Calculator size={18} /> },
     { label: 'Users', to: '/admin/users', icon: <Users size={18} /> },
     { label: 'Providers', to: '/admin/providers', icon: <ShieldCheck size={18} /> },
     { label: 'Requests', to: '/admin/requests', icon: <ListChecks size={18} /> },

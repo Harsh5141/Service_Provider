@@ -56,6 +56,24 @@ public class ServiceRequestDto
     public string PayoutStatus { get; set; } = "Pending";
     public DateTime? PayoutDate { get; set; }
 
+    // Tax Financial Snapshot (Immutable)
+    public int? AppliedTaxRuleId { get; set; }
+    public string TaxRuleName { get; set; } = "Exempt / No Tax";
+    public decimal TaxRate { get; set; }
+    public decimal TaxableBase { get; set; }
+    public decimal TaxAmount { get; set; }
+    public decimal CgstRate { get; set; }
+    public decimal CgstAmount { get; set; }
+    public decimal SgstRate { get; set; }
+    public decimal SgstAmount { get; set; }
+    public decimal IgstRate { get; set; }
+    public decimal IgstAmount { get; set; }
+    public string? HsnSacCode { get; set; } = "9987";
+    public string PlaceOfSupply { get; set; } = "Gujarat (24)";
+    public string SupplierGstin { get; set; } = "24AAACF1234F1Z5";
+    public string InvoiceNumber { get; set; } = string.Empty;
+    public DateTime? InvoicedAt { get; set; }
+
     public string? CancellationReason { get; set; }
 
     public DateTime CreatedAt { get; set; }

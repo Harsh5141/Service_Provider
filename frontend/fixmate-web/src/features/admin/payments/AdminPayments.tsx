@@ -33,6 +33,13 @@ interface PaymentItem {
   refundCount: number
   refundStatus: string
   totalRefunded: number
+  taxAmount?: number
+  taxableBase?: number
+  cgstAmount?: number
+  sgstAmount?: number
+  igstAmount?: number
+  placeOfSupply?: string
+  invoiceNumber?: string
 }
 
 interface FinancialSummary {
@@ -156,13 +163,16 @@ export default function AdminPayments() {
     const headers = [
       'Transaction ID',
       'Booking ID',
+      'Invoice Number',
       'Customer Name',
       'Provider Name',
       'Service Name',
       'Service Price',
-      'Service Charge Percentage',
       'Service Charge Amount',
+      'Taxable Base',
+      'Tax Amount (GST)',
       'Customer Total Amount',
+      'Place of Supply',
       'Payment Method',
       'Payment Status',
       'Refund Status',
@@ -171,13 +181,16 @@ export default function AdminPayments() {
     const rows = payments.map((p) => [
       `"${p.razorpayPaymentId || p.razorpayOrderId || `TX-${p.id}`}"`,
       p.requestId,
+      `"${p.invoiceNumber || `INV-FXM-${p.requestId}`}"`,
       `"${p.customerName}"`,
       `"${p.providerName}"`,
       `"${p.serviceName}"`,
       p.servicePrice.toFixed(2),
-      `${p.serviceChargeRate}%`,
       p.serviceChargeAmount.toFixed(2),
+      (p.taxableBase || p.servicePrice).toFixed(2),
+      (p.taxAmount || 0).toFixed(2),
       p.customerTotalAmount.toFixed(2),
+      `"${p.placeOfSupply || 'Gujarat'}"`,
       p.method,
       p.status,
       p.refundStatus || 'None',
@@ -428,8 +441,8 @@ export default function AdminPayments() {
                   <th className="px-4 py-3">Provider</th>
                   <th className="px-4 py-3">Service</th>
                   <th className="px-4 py-3 text-right">Service Price</th>
-                  <th className="px-4 py-3 text-right">FixMate Charge (%)</th>
                   <th className="px-4 py-3 text-right">Charge Amount</th>
+                  <th className="px-4 py-3 text-right">Tax (GST)</th>
                   <th className="px-4 py-3 text-right">Total Amount</th>
                   <th className="px-4 py-3">Method</th>
                   <th className="px-4 py-3">Payment Status</th>
@@ -476,14 +489,17 @@ export default function AdminPayments() {
                         ₹{p.servicePrice.toFixed(2)}
                       </td>
 
-                      {/* Service Charge Rate */}
-                      <td className="px-4 py-3.5 text-right font-bold text-blue-600">
-                        {p.serviceChargeRate}%
+                      {/* Service Charge Amount */}
+                      <td className="px-4 py-3.5 text-right font-medium text-gray-700">
+                        ₹{p.serviceChargeAmount.toFixed(2)}
                       </td>
 
-                      {/* Service Charge Amount */}
-                      <td className="px-4 py-3.5 text-right font-bold text-blue-700">
-                        ₹{p.serviceChargeAmount.toFixed(2)}
+                      {/* Tax Amount */}
+                      <td className="px-4 py-3.5 text-right font-bold text-purple-700">
+                        ₹{(p.taxAmount || 0).toFixed(2)}
+                        {p.placeOfSupply && (
+                          <div className="text-[9px] text-gray-400 font-normal">{p.placeOfSupply}</div>
+                        )}
                       </td>
 
                       {/* Customer Total Amount */}
@@ -673,6 +689,24 @@ export default function AdminPayments() {
                   <span>FixMate Service Charge ({selectedTx.serviceChargeRate}%):</span>
                   <span className="font-bold">+ ₹{selectedTx.serviceChargeAmount.toFixed(2)}</span>
                 </div>
+                {selectedTx.taxAmount !== undefined && (
+                  <div className="flex justify-between items-center text-purple-800">
+                    <span>Applicable Tax (GST):</span>
+                    <span className="font-bold">+ ₹{selectedTx.taxAmount.toFixed(2)}</span>
+                  </div>
+                )}
+                {selectedTx.cgstAmount !== undefined && selectedTx.cgstAmount > 0 && (
+                  <div className="flex justify-between items-center text-[11px] text-gray-500 pl-2">
+                    <span>CGST + SGST (Intra-state):</span>
+                    <span>₹{selectedTx.cgstAmount.toFixed(2)} + ₹{(selectedTx.sgstAmount || 0).toFixed(2)}</span>
+                  </div>
+                )}
+                {selectedTx.igstAmount !== undefined && selectedTx.igstAmount > 0 && (
+                  <div className="flex justify-between items-center text-[11px] text-gray-500 pl-2">
+                    <span>IGST (Inter-state supply):</span>
+                    <span>₹{selectedTx.igstAmount.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="border-t border-blue-200 pt-2 flex justify-between items-center text-sm font-black text-gray-900">
                   <span>Total Customer Paid:</span>
                   <span className="text-emerald-600">₹{selectedTx.customerTotalAmount.toFixed(2)}</span>
