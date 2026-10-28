@@ -111,17 +111,36 @@ export const fetchCurrentUser = createAsyncThunk(
 )
 
 // ── Storage Helpers ───────────────────────────────────────────────────────────
+const isTokenExpired = (token: string): boolean => {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return false
+    const payload = JSON.parse(atob(parts[1]))
+    if (payload.exp && typeof payload.exp === 'number') {
+      return Date.now() >= payload.exp * 1000
+    }
+    return false
+  } catch {
+    return false
+  }
+}
+
 const getInitialState = (): AuthState => {
   try {
     const storedUser = localStorage.getItem('fixmate_user')
     const storedToken = localStorage.getItem('fixmate_token')
     if (storedUser && storedToken) {
-      return {
-        user: JSON.parse(storedUser),
-        accessToken: storedToken,
-        isAuthenticated: true,
-        isLoading: false,
-        error: null,
+      if (!isTokenExpired(storedToken)) {
+        return {
+          user: JSON.parse(storedUser),
+          accessToken: storedToken,
+          isAuthenticated: true,
+          isLoading: false,
+          error: null,
+        }
+      } else {
+        localStorage.removeItem('fixmate_user')
+        localStorage.removeItem('fixmate_token')
       }
     }
   } catch {

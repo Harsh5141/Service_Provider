@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import { Link, Outlet, useNavigate } from 'react-router-dom'
-import { Wrench, Shield, Menu, X, ArrowRight, PhoneCall, Sparkles, User, LogIn } from 'lucide-react'
+import { Wrench, Shield, Menu, X, ArrowRight, PhoneCall, Sparkles, User, LogIn, LogOut } from 'lucide-react'
 import { useAppSelector } from '@/hooks/useAppSelector'
+import { useAppDispatch } from '@/hooks/useAppDispatch'
+import { logout } from '@/features/auth/authSlice'
 
 export default function PublicLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { isAuthenticated, user } = useAppSelector((s) => s.auth)
+  const dispatch = useAppDispatch()
   const navigate = useNavigate()
 
   const getDashboardPath = () => {
@@ -24,9 +27,9 @@ export default function PublicLayout() {
           <span>Need urgent repair? Verified experts available at your doorstep in 30 minutes.</span>
           <Link
             to="/register"
-            className="ml-2 hidden underline decoration-amber-300 decoration-2 underline-offset-2 hover:text-amber-200 sm:inline"
+            className="ml-2 hidden underline decoration-amber-300 decoration-2 underline-offset-2 hover:text-amber-200 sm:inline font-semibold"
           >
-            Book your first service &rarr;
+            Sign Up & Book Service →
           </Link>
         </div>
       </div>
@@ -71,13 +74,30 @@ export default function PublicLayout() {
           {/* Right Action Buttons */}
           <div className="hidden md:flex items-center gap-3">
             {isAuthenticated ? (
-              <button
-                onClick={() => navigate(getDashboardPath())}
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-600/20 hover:bg-blue-700 transition-all hover:shadow-lg"
-              >
-                <User className="h-4 w-4" />
-                Go to Dashboard
-              </button>
+              <div className="flex items-center gap-3">
+                <Link
+                  to={getDashboardPath()}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all"
+                >
+                  <User className="h-4 w-4 text-blue-600" />
+                  <span>{user?.name ? user.name.split(' ')[0] : 'My Account'}</span>
+                </Link>
+                <button
+                  onClick={() => dispatch(logout())}
+                  className="inline-flex items-center gap-1 rounded-xl px-3 py-2 text-sm font-medium text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                  title="Sign Out"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span>Sign Out</span>
+                </button>
+                <Link
+                  to="/register"
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-blue-600/20 hover:bg-blue-700 transition-all hover:shadow-lg hover:shadow-blue-600/30"
+                >
+                  Sign Up
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
             ) : (
               <>
                 <Link
@@ -89,9 +109,9 @@ export default function PublicLayout() {
                 </Link>
                 <Link
                   to="/register"
-                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-600/20 hover:bg-blue-700 transition-all hover:shadow-lg hover:shadow-blue-600/30"
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-blue-600/20 hover:bg-blue-700 transition-all hover:shadow-lg hover:shadow-blue-600/30"
                 >
-                  Book Service
+                  Sign Up
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </>
@@ -144,15 +164,34 @@ export default function PublicLayout() {
               </Link>
               <div className="my-2 border-t border-slate-100" />
               {isAuthenticated ? (
-                <button
-                  onClick={() => {
-                    setMobileMenuOpen(false)
-                    navigate(getDashboardPath())
-                  }}
-                  className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white"
-                >
-                  Go to Dashboard
-                </button>
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false)
+                      navigate(getDashboardPath())
+                    }}
+                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50 flex items-center justify-center gap-2"
+                  >
+                    <User className="h-4 w-4 text-blue-600" />
+                    <span>{user?.name ? `${user.name.split(' ')[0]}'s Dashboard` : 'Dashboard'}</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false)
+                      dispatch(logout())
+                    }}
+                    className="w-full rounded-xl border border-rose-200 px-4 py-2 text-center text-sm font-medium text-rose-600 hover:bg-rose-50"
+                  >
+                    Sign Out
+                  </button>
+                  <Link
+                    to="/register"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="rounded-xl bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white shadow-md shadow-blue-600/20"
+                  >
+                    Sign Up
+                  </Link>
+                </div>
               ) : (
                 <div className="flex flex-col gap-2">
                   <Link
@@ -167,7 +206,7 @@ export default function PublicLayout() {
                     onClick={() => setMobileMenuOpen(false)}
                     className="rounded-xl bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white shadow-md shadow-blue-600/20"
                   >
-                    Book Service Now
+                    Sign Up
                   </Link>
                 </div>
               )}

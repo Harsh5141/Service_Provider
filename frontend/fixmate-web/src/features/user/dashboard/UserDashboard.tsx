@@ -72,41 +72,7 @@ export default function UserDashboard() {
   const [defaultAddress, setDefaultAddress] = useState<string>('Valsad, Gujarat (396001)')
 
   // Equipment passport
-  const [appliances] = useState([
-    {
-      id: 1,
-      name: 'Samsung 1.5 Ton 5-Star Split AC',
-      category: 'Air Conditioner',
-      lastServiced: '12 May 2026',
-      serviceDueDays: 14,
-      status: 'Seasonal Care Due Soon',
-      badgeColor: 'bg-amber-100 text-amber-800 border-amber-200',
-      serviceId: 13,
-      catId: 3
-    },
-    {
-      id: 2,
-      name: 'LG 8.0 Kg Front Load Washing Machine',
-      category: 'Washing Machine',
-      lastServiced: '28 Feb 2026',
-      serviceDueDays: 85,
-      status: 'Healthy & Calibrated',
-      badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-      serviceId: 16,
-      catId: 4
-    },
-    {
-      id: 3,
-      name: 'Kent Grand Plus RO Water Purifier',
-      category: 'Water Purifier',
-      lastServiced: '10 Jan 2026',
-      serviceDueDays: 5,
-      status: 'Filter Replacement Recommended',
-      badgeColor: 'bg-rose-100 text-rose-800 border-rose-200',
-      serviceId: 31,
-      catId: 9
-    }
-  ])
+  const [appliances] = useState<any[]>([])
 
   useEffect(() => {
     async function loadDashboardData() {
@@ -702,47 +668,66 @@ export default function UserDashboard() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {appliances.map((app) => (
-            <div
-              key={app.id}
-              className="rounded-2xl border border-gray-200 bg-white p-5 space-y-4 shadow-2xs hover:border-gray-300 transition"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-xl bg-blue-50 p-2.5 text-blue-600">
-                    <Tv size={20} />
-                  </div>
-                  <div>
-                    <h4 className="text-xs sm:text-sm font-bold text-gray-900">{app.name}</h4>
-                    <p className="text-[11px] text-gray-500">{app.category}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-xl bg-gray-50 p-3 text-xs space-y-2">
-                <div className="flex justify-between text-gray-600">
-                  <span>Last Inspection:</span>
-                  <span className="font-semibold text-gray-900">{app.lastServiced}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Status:</span>
-                  <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] border ${app.badgeColor}`}>
-                    {app.status}
-                  </span>
-                </div>
-              </div>
-
-              <button
-                onClick={() => navigate(`/requests/new?serviceId=${app.serviceId}&categoryId=${app.catId}`)}
-                className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 py-2.5 text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition cursor-pointer"
-              >
-                <RefreshCw size={13} />
-                <span>Schedule Routine Checkup</span>
-              </button>
+        {appliances.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-6 text-center space-y-2.5">
+            <div className="mx-auto w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+              <Tv size={20} />
             </div>
-          ))}
-        </div>
+            <h4 className="text-xs font-bold text-gray-800">No Household Equipment Registered</h4>
+            <p className="text-[11px] text-gray-500 max-w-sm mx-auto">
+              Add your appliances in the Service History tab to track warranties and maintenance schedules.
+            </p>
+            <Link
+              to="/service-history"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-blue-700 transition"
+            >
+              <span>Go to Appliance Tracker</span>
+              <ArrowRight size={12} />
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {appliances.map((app) => (
+              <div
+                key={app.id}
+                className="rounded-2xl border border-gray-200 bg-white p-5 space-y-4 shadow-2xs hover:border-gray-300 transition"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-xl bg-blue-50 p-2.5 text-blue-600">
+                      <Tv size={20} />
+                    </div>
+                    <div>
+                      <h4 className="text-xs sm:text-sm font-bold text-gray-900">{app.name}</h4>
+                      <p className="text-[11px] text-gray-500">{app.category}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl bg-gray-50 p-3 text-xs space-y-2">
+                  <div className="flex justify-between text-gray-600">
+                    <span>Last Inspection:</span>
+                    <span className="font-semibold text-gray-900">{app.lastServiced}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Status:</span>
+                    <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] border ${app.badgeColor}`}>
+                      {app.status}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => navigate(`/requests/new?serviceId=${app.serviceId}&categoryId=${app.catId}`)}
+                  className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 py-2.5 text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition cursor-pointer"
+                >
+                  <RefreshCw size={13} />
+                  <span>Schedule Routine Checkup</span>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

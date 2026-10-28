@@ -28,9 +28,13 @@ export default function AdminRequests() {
             service: r.serviceName || 'Home Service',
             category: r.categoryName || 'General Services',
             status: r.status || 'Created',
-            amount: r.estimatedCost || r.finalCost || 299,
-            date: r.scheduledDate ? new Date(r.scheduledDate).toISOString().split('T')[0] : '2026-09-30',
-            slot: r.preferredTimeSlot || '10:00 AM - 12:00 PM'
+            amount: r.finalCost ?? r.estimatedCost ?? r.totalAmount ?? 0,
+            date: r.scheduledDate
+              ? new Date(r.scheduledDate).toISOString().split('T')[0]
+              : r.createdAt
+              ? new Date(r.createdAt).toISOString().split('T')[0]
+              : '',
+            slot: r.preferredTimeSlot || r.timeSlot || 'Flexible Slot'
           })))
         }
       })

@@ -15,6 +15,8 @@ public class Payment : BaseEntity
     public decimal Amount { get; set; }
     public decimal PlatformFee { get; set; } = 0.00m;
     public decimal ProviderPayout { get; set; } = 0.00m;
+    public decimal TaxAmount { get; set; } = 0.00m;
+    public decimal TaxableAmount { get; set; } = 0.00m;
 
     public PaymentMethod Method { get; set; } = PaymentMethod.Online;
     public PaymentStatus Status { get; set; } = PaymentStatus.Pending;

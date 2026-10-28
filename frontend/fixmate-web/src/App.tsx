@@ -42,6 +42,7 @@ import AdminServices       from '@/features/admin/services/AdminServices'
 import AdminPayments       from '@/features/admin/payments/AdminPayments'
 import AdminReviews        from '@/features/admin/reviews/AdminReviews'
 import AdminComplaints     from '@/features/admin/complaints/AdminComplaints'
+import AdminTaxManagement  from '@/features/admin/tax/AdminTaxManagement'
 
 export default function App() {
   return (
@@ -83,6 +84,7 @@ export default function App() {
         <Route element={<RoleRoute allowedRoles={['Admin']} />}>
           <Route element={<AdminLayout />}>
             <Route path="admin"                   element={<AdminDashboard />} />
+            <Route path="admin/tax"               element={<AdminTaxManagement />} />
             <Route path="admin/users"             element={<AdminUsers />} />
             <Route path="admin/providers"         element={<AdminProviders />} />
             <Route path="admin/requests"          element={<AdminRequests />} />

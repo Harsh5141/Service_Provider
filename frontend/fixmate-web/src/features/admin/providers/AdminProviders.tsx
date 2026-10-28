@@ -23,79 +23,20 @@ interface ProviderItem {
   skills?: string[]
 }
 
-const DEMO_PROVIDERS: ProviderItem[] = [
-  {
-    id: 1,
-    userId: 101,
-    name: 'Rajesh Kumar',
-    email: 'rajesh@fixmate.test',
-    phone: '+91 98765 43210',
-    bio: 'Certified master electrician and HVAC specialist with 8+ years experience.',
-    experienceYears: 8,
-    ratingAverage: 4.85,
-    ratingCount: 142,
-    status: 'Active',
-    isAvailable: true,
-    serviceRadiusKm: 15,
-    city: 'Valsad',
-    postalCode: '396001',
-    primaryCategory: 'Electrical & Power',
-    categories: ['Electrical & Power', 'AC & Appliance Repair'],
-    skills: ['AC Repair & Servicing', 'Electrical & Wiring', 'Appliance Repair']
-  },
-  {
-    id: 2,
-    userId: 102,
-    name: 'Amit Singh',
-    email: 'amit@fixmate.test',
-    phone: '+91 98765 43214',
-    bio: 'Professional plumber & drainage specialist with 5 years experience.',
-    experienceYears: 5,
-    ratingAverage: 4.88,
-    ratingCount: 89,
-    status: 'Active',
-    isAvailable: true,
-    serviceRadiusKm: 10,
-    city: 'Valsad',
-    postalCode: '396001',
-    primaryCategory: 'Plumbing & Sanitary',
-    categories: ['Plumbing & Sanitary', 'Home Cleaning & Pest'],
-    skills: ['Plumbing & Drainage', 'Home Deep Cleaning']
-  },
-  {
-    id: 3,
-    userId: 103,
-    name: 'Vikram Joshi',
-    email: 'vikram.j@gmail.com',
-    phone: '+91 98765 43220',
-    bio: 'AC & Refrigeration technician with 6 years experience.',
-    experienceYears: 6,
-    ratingAverage: 4.70,
-    ratingCount: 22,
-    status: 'PendingApproval',
-    isAvailable: true,
-    serviceRadiusKm: 12,
-    city: 'Valsad',
-    postalCode: '396002',
-    primaryCategory: 'AC & Appliance Repair',
-    categories: ['AC & Appliance Repair'],
-    skills: ['AC Repair & Servicing']
-  }
-]
-
 export default function AdminProviders() {
-  const [providers, setProviders] = useState<ProviderItem[]>(DEMO_PROVIDERS)
-  const [loading, setLoading] = useState(false)
+  const [providers, setProviders] = useState<ProviderItem[]>([])
+  const [loading, setLoading] = useState(true)
 
   const loadProviders = async () => {
     setLoading(true)
     try {
       const res = await api.get('/admin/providers')
-      if (res.data?.data && Array.isArray(res.data.data) && res.data.data.length > 0) {
+      if (res.data?.data && Array.isArray(res.data.data)) {
         setProviders(res.data.data)
       }
     } catch (err) {
-      console.warn('Using fallback admin providers list', err)
+      console.error('Failed to load admin providers from database', err)
+      toast.error('Failed to load providers list')
     } finally {
       setLoading(false)
     }

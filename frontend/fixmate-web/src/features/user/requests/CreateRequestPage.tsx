@@ -124,6 +124,52 @@ export default function CreateRequestPage() {
   const [paymentOption, setPaymentOption] = useState<'RAZORPAY' | 'COD'>('RAZORPAY')
   const [submitting, setSubmitting] = useState<boolean>(false)
 
+  // FixMate Price & Tax Quote State
+  const [priceQuote, setPriceQuote] = useState<{
+    basePrice: number
+    serviceChargeRate: number
+    serviceChargePercentage: number
+    serviceChargeAmount: number
+    taxEnabled: boolean
+    taxRuleName: string
+    taxRate: number
+    taxableBase: number
+    taxAmount: number
+    cgstRate: number
+    cgstAmount: number
+    sgstRate: number
+    sgstAmount: number
+    igstRate: number
+    igstAmount: number
+    isInterState: boolean
+    placeOfSupply: string
+    totalPayable: number
+    appliedMode: string
+    explanation: string
+  }>({
+    basePrice: 199,
+    serviceChargeRate: 0.1,
+    serviceChargePercentage: 10,
+    serviceChargeAmount: 19.9,
+    taxEnabled: true,
+    taxRuleName: 'GST Standard 18% (Services)',
+    taxRate: 18,
+    taxableBase: 199,
+    taxAmount: 35.82,
+    cgstRate: 9,
+    cgstAmount: 17.91,
+    sgstRate: 9,
+    sgstAmount: 17.91,
+    igstRate: 0,
+    igstAmount: 0,
+    isInterState: false,
+    placeOfSupply: 'Gujarat (Intra-State)',
+    totalPayable: 254.72,
+    appliedMode: 'Global',
+    explanation: 'Global tax rule applied.'
+  })
+  const [loadingQuote, setLoadingQuote] = useState(false)
+
   // Address Modal State
   const [showAddAddrModal, setShowAddAddrModal] = useState(false)
   const [newStreet, setNewStreet] = useState('')
@@ -371,10 +417,83 @@ export default function CreateRequestPage() {
     }
   }
 
-  // Pricing calculations
-  const basePrice = selectedService?.basePrice ?? 199
-  const safetyFee = 49
-  const totalAmount = basePrice + safetyFee
+  // Dynamic calculation of FixMate Service Charge & Tax from backend
+  useEffect(() => {
+    async function fetchPriceBreakdown() {
+      if (!selectedService) return
+      setLoadingQuote(true)
+      try {
+        const stateParam = selectedAddress?.state ? `&state=${encodeURIComponent(selectedAddress.state)}` : ''
+        const res = await api.get(`/requests/calculate-price?serviceId=${selectedService.id}${stateParam}`)
+        if (res.data?.data) {
+          const d = res.data.data
+          const resolvedServicePrice = Number(d.servicePrice ?? d.basePrice ?? selectedService.basePrice ?? 199)
+          const resolvedRate = Number(d.serviceChargeRate ?? ((d.serviceChargePercentage ?? 10) / 100))
+          const resolvedPercent = Number(d.serviceChargePercentage ?? (resolvedRate * 100))
+          const resolvedAmount = Number(d.serviceChargeAmount ?? Math.round(resolvedServicePrice * resolvedRate * 100) / 100)
+          const resolvedTotal = Number(d.totalPayable ?? (resolvedServicePrice + resolvedAmount))
+
+          setPriceQuote({
+            basePrice: isNaN(resolvedServicePrice) ? 199 : resolvedServicePrice,
+            serviceChargeRate: isNaN(resolvedRate) ? 0.1 : resolvedRate,
+            serviceChargePercentage: isNaN(resolvedPercent) ? 10 : resolvedPercent,
+            serviceChargeAmount: isNaN(resolvedAmount) ? 19.9 : resolvedAmount,
+            taxEnabled: Boolean(d.taxEnabled),
+            taxRuleName: d.taxRuleName || 'Standard GST 18%',
+            taxRate: Number(d.taxRate ?? 18),
+            taxableBase: Number(d.taxableBase ?? resolvedServicePrice),
+            taxAmount: Number(d.taxAmount ?? 0),
+            cgstRate: Number(d.cgstRate ?? 0),
+            cgstAmount: Number(d.cgstAmount ?? 0),
+            sgstRate: Number(d.sgstRate ?? 0),
+            sgstAmount: Number(d.sgstAmount ?? 0),
+            igstRate: Number(d.igstRate ?? 0),
+            igstAmount: Number(d.igstAmount ?? 0),
+            isInterState: Boolean(d.isInterState),
+            placeOfSupply: d.placeOfSupply || 'Gujarat (Intra-State)',
+            totalPayable: isNaN(resolvedTotal) ? (resolvedServicePrice + resolvedAmount) : resolvedTotal,
+            appliedMode: d.appliedMode || 'Global',
+            explanation: d.explanation || ''
+          })
+        }
+      } catch (e) {
+        // Fallback calculation using default 10% and standard 18% tax
+        const bp = Number(selectedService.basePrice) || 199
+        const scAmount = Math.round(bp * 0.1 * 100) / 100
+        const taxAmount = Math.round(bp * 0.18 * 100) / 100
+        setPriceQuote({
+          basePrice: bp,
+          serviceChargeRate: 0.1,
+          serviceChargePercentage: 10,
+          serviceChargeAmount: scAmount,
+          taxEnabled: true,
+          taxRuleName: 'GST Standard 18% (Services)',
+          taxRate: 18,
+          taxableBase: bp,
+          taxAmount: taxAmount,
+          cgstRate: 9,
+          cgstAmount: Math.round(taxAmount / 2 * 100) / 100,
+          sgstRate: 9,
+          sgstAmount: Math.round(taxAmount / 2 * 100) / 100,
+          igstRate: 0,
+          igstAmount: 0,
+          isInterState: false,
+          placeOfSupply: 'Gujarat (Intra-State)',
+          totalPayable: bp + scAmount + taxAmount,
+          appliedMode: 'Global',
+          explanation: 'Standard fallback tax.'
+        })
+      } finally {
+        setLoadingQuote(false)
+      }
+    }
+    fetchPriceBreakdown()
+  }, [selectedService, selectedAddress])
+
+  const basePrice = Number(priceQuote.basePrice) || Number(selectedService?.basePrice) || 199
+  const serviceChargePercentage = Number(priceQuote.serviceChargePercentage) || 10
+  const serviceChargeAmount = Number(priceQuote.serviceChargeAmount) || Math.round(basePrice * (serviceChargePercentage / 100) * 100) / 100
+  const totalAmount = Number(priceQuote.totalPayable) || (basePrice + serviceChargeAmount)
 
   // Final Booking Submission
   const proceedWithBookingApi = async (razorpayPaymentId?: string) => {
@@ -391,13 +510,15 @@ export default function CreateRequestPage() {
         scheduledDate: new Date(scheduledDate).toISOString(),
         preferredTimeSlot: timeSlot,
         problemDescription: problemDescription.trim(),
-        estimatedCost: totalAmount
+        estimatedCost: totalAmount,
+        paymentMethod: paymentOption === 'RAZORPAY' ? 'Online' : 'Cash',
+        razorpayPaymentId: razorpayPaymentId || undefined
       }
 
       const res = await api.post('/requests', payload)
       const data = res.data?.data
 
-      if (data) {
+      if (data && data.id) {
         const isAssigned = !!data.providerId || !!data.providerName
         generateNewRequestOtp(data.id)
         setBookingResult({
@@ -410,15 +531,7 @@ export default function CreateRequestPage() {
           estimatedArrivalMinutes: data.estimatedArrivalMinutes || 25
         })
       } else {
-        const reqId = Math.floor(100 + Math.random() * 900)
-        generateNewRequestOtp(reqId)
-        setBookingResult({
-          success: true,
-          requestId: reqId,
-          providerAssigned: false,
-          distanceKm: 2.1,
-          estimatedArrivalMinutes: 25
-        })
+        throw new Error('Server returned an empty or invalid booking response.')
       }
 
       if (razorpayPaymentId) {
@@ -1447,23 +1560,99 @@ export default function CreateRequestPage() {
               </div>
             </div>
 
-            {/* Price Breakdown */}
-            <div className="rounded-2xl bg-slate-50 p-5 border border-slate-200 space-y-3 text-xs">
-              <div className="flex justify-between items-center text-gray-600">
-                <span>Base Service Package:</span>
-                <span className="font-bold text-gray-900">₹{selectedService.basePrice}</span>
+            {/* Price Breakdown Table */}
+            <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-xs">
+              <div className="bg-slate-50 px-5 py-3 border-b border-gray-200 flex items-center justify-between">
+                <span className="font-bold text-gray-800 text-xs uppercase tracking-wider">
+                  Transparent Price Breakdown
+                </span>
+                {loadingQuote && (
+                  <span className="text-[11px] text-blue-600 flex items-center gap-1">
+                    <RefreshCw size={12} className="animate-spin" /> Live calculating...
+                  </span>
+                )}
               </div>
-              <div className="flex justify-between items-center text-gray-600">
-                <span>FixMate Safety & Hygiene Fee:</span>
-                <span className="font-bold text-gray-900">₹49</span>
-              </div>
-              <div className="flex justify-between items-center text-gray-600">
-                <span>30-Day Post-Service Guarantee:</span>
-                <span className="font-bold text-emerald-600">FREE</span>
-              </div>
-              <div className="border-t border-slate-300 pt-3 flex justify-between items-center text-sm font-extrabold text-gray-900">
-                <span>{paymentOption === 'RAZORPAY' ? 'Total Payable via Razorpay:' : 'Total Due at Completion:'}</span>
-                <span className="text-lg text-emerald-600 font-black">₹{totalAmount}</span>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-gray-100 bg-gray-50/50 text-gray-500 font-semibold">
+                    <tr>
+                      <th className="px-5 py-2.5">Description</th>
+                      <th className="px-5 py-2.5 text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    <tr>
+                      <td className="px-5 py-3 font-medium text-gray-700">Service Price</td>
+                      <td className="px-5 py-3 text-right font-bold text-gray-900">₹{basePrice.toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                      <td className="px-5 py-3 font-medium text-gray-700">
+                        FixMate Service Charge ({serviceChargePercentage}%)
+                      </td>
+                      <td className="px-5 py-3 text-right font-bold text-blue-700">
+                        + ₹{serviceChargeAmount.toFixed(2)}
+                      </td>
+                    </tr>
+
+                    {/* Tax Breakdown Rows */}
+                    {priceQuote.taxEnabled && priceQuote.taxAmount > 0 ? (
+                      <>
+                        <tr className="bg-blue-50/20">
+                          <td className="px-5 py-2.5 font-medium text-gray-700">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-gray-900">{priceQuote.taxRuleName} ({priceQuote.taxRate}%)</span>
+                              <span className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                                {priceQuote.placeOfSupply}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-gray-400">
+                              Taxable base: ₹{priceQuote.taxableBase.toFixed(2)}
+                            </span>
+                          </td>
+                          <td className="px-5 py-2.5 text-right font-bold text-gray-900">
+                            + ₹{priceQuote.taxAmount.toFixed(2)}
+                          </td>
+                        </tr>
+
+                        {!priceQuote.isInterState ? (
+                          <>
+                            <tr className="text-[11px] text-gray-500 bg-blue-50/10">
+                              <td className="px-7 py-1.5 pl-8 text-gray-600">↳ CGST ({priceQuote.cgstRate}%)</td>
+                              <td className="px-5 py-1.5 text-right">₹{priceQuote.cgstAmount.toFixed(2)}</td>
+                            </tr>
+                            <tr className="text-[11px] text-gray-500 bg-blue-50/10">
+                              <td className="px-7 py-1.5 pl-8 text-gray-600">↳ SGST ({priceQuote.sgstRate}%)</td>
+                              <td className="px-5 py-1.5 text-right">₹{priceQuote.sgstAmount.toFixed(2)}</td>
+                            </tr>
+                          </>
+                        ) : (
+                          <tr className="text-[11px] text-gray-500 bg-blue-50/10">
+                            <td className="px-7 py-1.5 pl-8 text-gray-600">↳ IGST ({priceQuote.igstRate}%)</td>
+                            <td className="px-5 py-1.5 text-right">₹{priceQuote.igstAmount.toFixed(2)}</td>
+                          </tr>
+                        )}
+                      </>
+                    ) : (
+                      <tr className="bg-gray-50/40">
+                        <td className="px-5 py-2.5 font-medium text-gray-500">Taxes & GST</td>
+                        <td className="px-5 py-2.5 text-right font-bold text-emerald-700">Exempt / ₹0.00</td>
+                      </tr>
+                    )}
+
+                    <tr className="bg-emerald-50/40">
+                      <td className="px-5 py-3 font-medium text-emerald-800">30-Day Post-Service Guarantee</td>
+                      <td className="px-5 py-3 text-right font-bold text-emerald-700">FREE</td>
+                    </tr>
+                  </tbody>
+                  <tfoot className="border-t-2 border-gray-200 bg-slate-50/80 font-black">
+                    <tr>
+                      <td className="px-5 py-3.5 text-sm text-gray-900">Total Payable</td>
+                      <td className="px-5 py-3.5 text-right text-base text-emerald-600 font-black">
+                        ₹{totalAmount.toFixed(2)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
               </div>
             </div>
 
@@ -1496,7 +1685,7 @@ export default function CreateRequestPage() {
                 ) : paymentOption === 'RAZORPAY' ? (
                   <>
                     <Lock size={15} />
-                    <span>Pay ₹{totalAmount} via Razorpay & Confirm</span>
+                    <span>Pay ₹{totalAmount.toFixed(2)} via Razorpay & Confirm</span>
                   </>
                 ) : (
                   <>

@@ -28,6 +28,34 @@ public class ServiceRequest : SoftDeletableEntity
     public decimal ExtraCharges { get; set; } = 0.00m;
     public decimal DiscountAmount { get; set; } = 0.00m;
     public decimal TotalAmount { get; set; }
+
+    // Financial snapshot captured at time of booking / completion
+    public decimal ServiceChargeRate { get; set; } = 0.10m; // FixMate Service Charge percentage (e.g. 0.10 = 10%)
+    public decimal PlatformFee { get; set; } = 0.00m; // FixMate Service Charge amount
+    public decimal CommissionRate { get; set; } = 0.15m;
+    public decimal CommissionAmount { get; set; } = 0.00m;
+    public decimal ProviderEarnings { get; set; } = 0.00m;
+    public string PayoutStatus { get; set; } = "Pending"; // "Pending", "Processed", "Paid"
+    public DateTime? PayoutDate { get; set; }
+
+    // Tax Financial Snapshot (Immutable historical snapshot)
+    public int? AppliedTaxRuleId { get; set; }
+    public string TaxRuleName { get; set; } = "Exempt / No Tax";
+    public decimal TaxRate { get; set; } = 0.00m; // e.g. 18.00%
+    public decimal TaxableBase { get; set; } = 0.00m; // Taxable amount calculated based on config
+    public decimal TaxAmount { get; set; } = 0.00m; // Total tax amount
+    public decimal CgstRate { get; set; } = 0.00m;
+    public decimal CgstAmount { get; set; } = 0.00m;
+    public decimal SgstRate { get; set; } = 0.00m;
+    public decimal SgstAmount { get; set; } = 0.00m;
+    public decimal IgstRate { get; set; } = 0.00m;
+    public decimal IgstAmount { get; set; } = 0.00m;
+    public string? HsnSacCode { get; set; } = "9987";
+    public string PlaceOfSupply { get; set; } = "Gujarat (24)";
+    public string SupplierGstin { get; set; } = "24AAACF1234F1Z5";
+    public string InvoiceNumber { get; set; } = string.Empty;
+    public DateTime? InvoicedAt { get; set; }
+
     public DateTime? AssignedAt { get; set; }
     public decimal? DistanceKm { get; set; }
 

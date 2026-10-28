@@ -25,67 +25,10 @@ interface CategoryItem {
   services: ServiceItem[]
 }
 
-const DEFAULT_CATEGORIES: CategoryItem[] = [
-  {
-    id: 1,
-    name: 'Electrical & Power',
-    slug: 'electrical-power',
-    description: 'Switchboards, wiring, fans, fuses and electrical troubleshooting',
-    iconName: 'Zap',
-    displayOrder: 1,
-    isActive: true,
-    services: [
-      { id: 1, categoryId: 1, name: 'Switchboard Installation & Repair', description: 'Modular switchboards repair', basePrice: 199, estimatedDurationMinutes: 45, isActive: true },
-      { id: 2, categoryId: 1, name: 'Ceiling Fan Installation / Replacement', description: 'Bracket mounting & wiring', basePrice: 249, estimatedDurationMinutes: 60, isActive: true },
-      { id: 3, categoryId: 1, name: 'MCB / Fuse Box Troubleshooting', description: 'Tripping diagnosis & fuse fix', basePrice: 399, estimatedDurationMinutes: 60, isActive: true }
-    ]
-  },
-  {
-    id: 2,
-    name: 'Plumbing & Sanitary',
-    slug: 'plumbing-sanitary',
-    description: 'Pipes, taps, drains, flush tanks and sanitary fittings',
-    iconName: 'Droplets',
-    displayOrder: 2,
-    isActive: true,
-    services: [
-      { id: 4, categoryId: 2, name: 'Tap & Mixer Repair / Replacement', description: 'Fix dripping faucets & washers', basePrice: 149, estimatedDurationMinutes: 30, isActive: true },
-      { id: 5, categoryId: 2, name: 'Clogged Drain & Sink Cleaning', description: 'Mechanical drain unclogging', basePrice: 349, estimatedDurationMinutes: 60, isActive: true },
-      { id: 6, categoryId: 2, name: 'Toilet Flush Tank & Cistern Repair', description: 'Syphon kit & leak stoppage', basePrice: 299, estimatedDurationMinutes: 45, isActive: true }
-    ]
-  },
-  {
-    id: 3,
-    name: 'AC & Appliance Repair',
-    slug: 'ac-appliance-repair',
-    description: 'Split / Window ACs, washing machines, refrigerators',
-    iconName: 'Wind',
-    displayOrder: 3,
-    isActive: true,
-    services: [
-      { id: 7, categoryId: 3, name: 'AC Foam Jet Deep Cleaning (Split / Window)', description: 'High-pressure foam wash', basePrice: 499, estimatedDurationMinutes: 60, isActive: true },
-      { id: 8, categoryId: 3, name: 'Washing Machine Diagnostic & Repair', description: 'Spin fault & PCB check', basePrice: 399, estimatedDurationMinutes: 60, isActive: true },
-      { id: 9, categoryId: 3, name: 'Refrigerator Cooling Troubleshooting', description: 'Relay & gas leak test', basePrice: 449, estimatedDurationMinutes: 60, isActive: true }
-    ]
-  },
-  {
-    id: 4,
-    name: 'Home Cleaning & Pest',
-    slug: 'cleaning-pest',
-    description: 'Bathroom scrubbing, sofa shampooing, pest control',
-    iconName: 'Sparkles',
-    displayOrder: 4,
-    isActive: true,
-    services: [
-      { id: 10, categoryId: 4, name: 'Intense Bathroom Deep Scrub & Descaling', description: 'Tile descaling & sanitization', basePrice: 599, estimatedDurationMinutes: 90, isActive: true },
-      { id: 11, categoryId: 4, name: 'Sofa Shampooing & Extraction (3-Seater)', description: 'Fabric vacuum & scrub', basePrice: 699, estimatedDurationMinutes: 75, isActive: true }
-    ]
-  }
-]
-
 export default function AdminServices() {
-  const [categories, setCategories] = useState<CategoryItem[]>(DEFAULT_CATEGORIES)
-  const [expandedCatId, setExpandedCatId] = useState<number | null>(1)
+  const [categories, setCategories] = useState<CategoryItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [expandedCatId, setExpandedCatId] = useState<number | null>(null)
 
   // Category Modal States
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
@@ -109,13 +52,20 @@ export default function AdminServices() {
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'category' | 'service'; id: number; name: string } | null>(null)
 
   const loadCatalog = async () => {
+    setLoading(true)
     try {
       const res = await api.get('/services/categories')
-      if (res.data?.data && Array.isArray(res.data.data) && res.data.data.length > 0) {
+      if (res.data?.data && Array.isArray(res.data.data)) {
         setCategories(res.data.data)
+        if (res.data.data.length > 0 && expandedCatId === null) {
+          setExpandedCatId(res.data.data[0].id)
+        }
       }
     } catch (err) {
-      console.warn('Using fallback categories catalog', err)
+      console.error('Failed to load categories catalog from database', err)
+      toast.error('Failed to load categories from database')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -191,17 +141,7 @@ export default function AdminServices() {
         if (created) {
           setCategories((prev) => [...prev, { ...created, services: [] }])
         } else {
-          const mockCat: CategoryItem = {
-            id: Date.now(),
-            name: catName.trim(),
-            slug: catName.toLowerCase().replace(/\s+/g, '-'),
-            description: catDescription.trim(),
-            iconName: catIcon,
-            displayOrder: categories.length + 1,
-            isActive: true,
-            services: []
-          }
-          setCategories((prev) => [...prev, mockCat])
+          loadCatalog()
         }
         toast.success(`Category "${catName}" added!`)
       }
@@ -362,12 +302,22 @@ export default function AdminServices() {
 
       {/* Category & Services Table */}
       <div className="space-y-4">
-        {categories.map((cat) => {
-          const isExpanded = expandedCatId === cat.id
-          const activeServicesCount = cat.services?.filter((s) => s.isActive).length ?? 0
+        {loading ? (
+          <div className="rounded-2xl border border-gray-200 bg-white p-12 text-center text-xs text-gray-400">
+            Loading service categories from database...
+          </div>
+        ) : categories.length === 0 ? (
+          <div className="rounded-2xl border border-gray-200 bg-white p-12 text-center text-gray-500">
+            <p className="text-base font-bold text-gray-700">No Categories Found</p>
+            <p className="text-xs text-gray-400 mt-1">Add your first service category to populate the marketplace.</p>
+          </div>
+        ) : (
+          categories.map((cat) => {
+            const isExpanded = expandedCatId === cat.id
+            const activeServicesCount = cat.services?.filter((s) => s.isActive).length ?? 0
 
-          return (
-            <div key={cat.id} className="rounded-2xl border border-gray-200 bg-white shadow-2xs overflow-hidden transition">
+            return (
+              <div key={cat.id} className="rounded-2xl border border-gray-200 bg-white shadow-2xs overflow-hidden transition">
               {/* Category Header Bar */}
               <div className="flex items-center justify-between p-5 bg-gray-50/60 border-b border-gray-100">
                 <div className="flex items-center gap-3 cursor-pointer select-none" onClick={() => setExpandedCatId(isExpanded ? null : cat.id)}>
@@ -468,7 +418,7 @@ export default function AdminServices() {
               )}
             </div>
           )
-        })}
+        }))}
       </div>
 
       {/* ── MODAL 1: ADD / EDIT CATEGORY ────────────────────────────────── */}

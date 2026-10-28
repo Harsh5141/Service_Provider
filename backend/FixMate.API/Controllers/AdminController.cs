@@ -32,11 +32,29 @@ public class AdminController : ControllerBase
         var pendingProvidersCount = await _context.ProviderProfiles.CountAsync(p => p.Status == ProviderStatus.PendingApproval);
         var openComplaintsCount = await _context.Complaints.CountAsync(c => c.Status == ComplaintStatus.Open || c.Status == ComplaintStatus.InReview);
 
-        var totalRevenue = await _context.Payments
+        // Real financial metrics from Payment and ServiceRequest tables
+        var completedPayments = await _context.Payments
             .Where(p => p.Status == PaymentStatus.Completed)
-            .SumAsync(p => (decimal?)p.Amount) ?? 154200.00m;
+            .ToListAsync();
 
-        var totalCommission = totalRevenue * 0.15m;
+        var totalRevenue = completedPayments.Sum(p => p.Amount);
+        var totalPlatformFeeRevenue = completedPayments.Sum(p => p.PlatformFee);
+        var totalProviderEarnings = completedPayments.Sum(p => p.ProviderPayout);
+
+        var totalCommissionEarned = await _context.ServiceRequests
+            .Where(r => r.Status == RequestStatus.Completed || r.Status == RequestStatus.Paid || r.Status == RequestStatus.Reviewed)
+            .SumAsync(r => (decimal?)r.CommissionAmount) ?? 0m;
+
+        var totalFixMateRevenue = totalPlatformFeeRevenue + totalCommissionEarned;
+
+        var totalRefunded = await _context.Refunds
+            .Where(r => r.Status == "Processed")
+            .SumAsync(r => (decimal?)r.Amount) ?? 0m;
+
+        // Pending payouts for providers on completed jobs
+        var pendingPayouts = await _context.Payments
+            .Where(p => p.Status == PaymentStatus.Completed)
+            .SumAsync(p => (decimal?)p.ProviderPayout) ?? 0m;
 
         var recent = await _context.ServiceRequests
             .AsNoTracking()
@@ -98,21 +116,98 @@ public class AdminController : ControllerBase
             })
             .ToListAsync();
 
+        // Aggregate real weekly GMV from Payments table
+        var now = DateTime.UtcNow;
+        var w1Start = now.AddDays(-28);
+        var w2Start = now.AddDays(-21);
+        var w3Start = now.AddDays(-14);
+        var w4Start = now.AddDays(-7);
+
+        var trend = new List<RevenueTrendDto>
+        {
+            new RevenueTrendDto { Month = "W-3", Revenue = completedPayments.Where(p => p.CreatedAt >= w1Start && p.CreatedAt < w2Start).Sum(p => p.Amount) },
+            new RevenueTrendDto { Month = "W-2", Revenue = completedPayments.Where(p => p.CreatedAt >= w2Start && p.CreatedAt < w3Start).Sum(p => p.Amount) },
+            new RevenueTrendDto { Month = "W-1", Revenue = completedPayments.Where(p => p.CreatedAt >= w3Start && p.CreatedAt < w4Start).Sum(p => p.Amount) },
+            new RevenueTrendDto { Month = "Current", Revenue = completedPayments.Where(p => p.CreatedAt >= w4Start).Sum(p => p.Amount) }
+        };
+
+        // If all payments occurred recently, show running cumulative totals
+        if (trend.All(t => t.Revenue == 0) && totalRevenue > 0)
+        {
+            trend = new List<RevenueTrendDto>
+            {
+                new RevenueTrendDto { Month = "Initial", Revenue = 0 },
+                new RevenueTrendDto { Month = "W-1", Revenue = completedPayments.Where(p => p.CreatedAt < w4Start).Sum(p => p.Amount) },
+                new RevenueTrendDto { Month = "Current", Revenue = totalRevenue }
+            };
+        }
+
         var dto = new AdminDashboardStatsDto
         {
-            TotalCustomers = totalCustomers > 0 ? totalCustomers : 1420,
-            TotalProviders = totalProviders > 0 ? totalProviders : 86,
-            ActiveRequests = activeRequests > 0 ? activeRequests : 34,
-            CompletedRequests = completedRequests > 0 ? completedRequests : 1290,
+            TotalCustomers = totalCustomers,
+            TotalProviders = totalProviders,
+            ActiveRequests = activeRequests,
+            CompletedRequests = completedRequests,
             TotalRevenue = totalRevenue,
-            TotalCommissionEarned = totalCommission,
+            TotalPlatformFeeRevenue = totalPlatformFeeRevenue,
+            TotalCommissionEarned = totalCommissionEarned,
+            TotalFixMateRevenue = totalFixMateRevenue,
+            TotalProviderEarnings = totalProviderEarnings,
+            TotalRefunded = totalRefunded,
+            PendingPayouts = pendingPayouts,
             PendingProviderApprovals = pendingProvidersCount,
             OpenComplaints = openComplaintsCount,
+            RevenueTrend = trend,
             RecentRequests = recent,
             PendingProviders = pendingProviders
         };
 
         return Ok(ApiResponse<AdminDashboardStatsDto>.Ok(dto, "Admin dashboard stats loaded"));
+    }
+
+    [HttpGet("settings")]
+    public async Task<ActionResult<ApiResponse<List<PlatformSettingDto>>>> GetSettings()
+    {
+        var settings = await _context.PlatformSettings
+            .AsNoTracking()
+            .Select(s => new PlatformSettingDto
+            {
+                Id = s.Id,
+                Key = s.Key,
+                Value = s.Value,
+                Description = s.Description,
+                DataType = s.DataType
+            })
+            .ToListAsync();
+
+        return Ok(ApiResponse<List<PlatformSettingDto>>.Ok(settings, "Platform settings loaded"));
+    }
+
+    [HttpPut("settings/{key}")]
+    public async Task<ActionResult<ApiResponse<bool>>> UpdateSetting(string key, [FromBody] UpdateSettingDto dto)
+    {
+        var setting = await _context.PlatformSettings.FirstOrDefaultAsync(s => s.Key == key);
+        if (setting == null)
+        {
+            setting = new Domain.Entities.PlatformSetting
+            {
+                Key = key,
+                Value = dto.Value,
+                Description = "Custom platform parameter",
+                DataType = "string",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            _context.PlatformSettings.Add(setting);
+        }
+        else
+        {
+            setting.Value = dto.Value;
+            setting.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await _context.SaveChangesAsync();
+        return Ok(ApiResponse<bool>.Ok(true, $"Platform setting '{key}' updated successfully."));
     }
 
     [HttpGet("providers")]
@@ -225,6 +320,108 @@ public class AdminController : ControllerBase
 
         return Ok(ApiResponse<bool>.Ok(true, $"Provider status set to {profile.Status}"));
     }
+
+    [HttpGet("complaints")]
+    public async Task<ActionResult<ApiResponse<List<AdminComplaintDto>>>> GetComplaints()
+    {
+        var complaints = await _context.Complaints
+            .AsNoTracking()
+            .Include(c => c.Customer)
+            .Include(c => c.Request)
+                .ThenInclude(r => r!.Service)
+            .Include(c => c.Request)
+                .ThenInclude(r => r!.ProviderProfile)
+                    .ThenInclude(p => p!.User)
+            .OrderByDescending(c => c.CreatedAt)
+            .Select(c => new AdminComplaintDto
+            {
+                Id = c.Id,
+                TicketNumber = $"TKT-{8900 + c.Id}",
+                Customer = c.Customer != null ? c.Customer.Name : "Customer",
+                Service = c.Request != null && c.Request.Service != null ? c.Request.Service.Name : "Service",
+                Provider = c.Request != null && c.Request.ProviderProfile != null && c.Request.ProviderProfile.User != null ? c.Request.ProviderProfile.User.Name : "Unassigned Partner",
+                Issue = c.Description,
+                Status = c.Status.ToString(),
+                Date = c.CreatedAt.ToString("yyyy-MM-dd")
+            })
+            .ToListAsync();
+
+        return Ok(ApiResponse<List<AdminComplaintDto>>.Ok(complaints, "Complaints loaded successfully"));
+    }
+
+    [HttpPut("complaints/{id}/resolve")]
+    public async Task<ActionResult<ApiResponse<bool>>> ResolveComplaint(int id)
+    {
+        var complaint = await _context.Complaints.FindAsync(id);
+        if (complaint == null) return NotFound(ApiResponse<bool>.Fail("Complaint not found", 404));
+
+        complaint.Status = ComplaintStatus.Resolved;
+        complaint.ResolvedAt = DateTime.UtcNow;
+        complaint.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        return Ok(ApiResponse<bool>.Ok(true, "Complaint resolved successfully"));
+    }
+
+    [HttpGet("reviews")]
+    public async Task<ActionResult<ApiResponse<List<AdminReviewDto>>>> GetReviews()
+    {
+        var reviews = await _context.Reviews
+            .AsNoTracking()
+            .Include(r => r.Customer)
+            .Include(r => r.ProviderProfile)
+                .ThenInclude(p => p!.User)
+            .OrderByDescending(r => r.CreatedAt)
+            .Select(r => new AdminReviewDto
+            {
+                Id = r.Id,
+                Customer = r.Customer != null ? r.Customer.Name : "Customer",
+                Provider = r.ProviderProfile != null && r.ProviderProfile.User != null ? r.ProviderProfile.User.Name : "Provider",
+                Rating = r.Rating,
+                Comment = r.Comment,
+                Date = r.CreatedAt.ToString("yyyy-MM-dd"),
+                IsVisible = r.IsVisible
+            })
+            .ToListAsync();
+
+        return Ok(ApiResponse<List<AdminReviewDto>>.Ok(reviews, "Reviews loaded successfully"));
+    }
+
+    [HttpPut("reviews/{id}/visibility")]
+    public async Task<ActionResult<ApiResponse<bool>>> ToggleReviewVisibility(int id)
+    {
+        var review = await _context.Reviews.FindAsync(id);
+        if (review == null) return NotFound(ApiResponse<bool>.Fail("Review not found", 404));
+
+        review.IsVisible = !review.IsVisible;
+        review.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        return Ok(ApiResponse<bool>.Ok(review.IsVisible, $"Review visibility updated to {review.IsVisible}"));
+    }
+}
+
+public class AdminComplaintDto
+{
+    public int Id { get; set; }
+    public string TicketNumber { get; set; } = string.Empty;
+    public string Customer { get; set; } = string.Empty;
+    public string Service { get; set; } = string.Empty;
+    public string Provider { get; set; } = string.Empty;
+    public string Issue { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public string Date { get; set; } = string.Empty;
+}
+
+public class AdminReviewDto
+{
+    public int Id { get; set; }
+    public string Customer { get; set; } = string.Empty;
+    public string Provider { get; set; } = string.Empty;
+    public int Rating { get; set; }
+    public string Comment { get; set; } = string.Empty;
+    public string Date { get; set; } = string.Empty;
+    public bool IsVisible { get; set; }
 }
 
 public class UpdateProviderStatusDto

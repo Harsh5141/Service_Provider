@@ -17,6 +17,8 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         builder.Property(p => p.Amount).HasPrecision(18, 2);
         builder.Property(p => p.PlatformFee).HasPrecision(18, 2);
         builder.Property(p => p.ProviderPayout).HasPrecision(18, 2);
+        builder.Property(p => p.TaxAmount).HasPrecision(18, 2);
+        builder.Property(p => p.TaxableAmount).HasPrecision(18, 2);
 
         builder.Property(p => p.RowVersion).IsRowVersion();
 
