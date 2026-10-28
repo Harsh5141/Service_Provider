@@ -12,6 +12,8 @@ public class ServiceConfiguration : IEntityTypeConfiguration<Service>
         builder.Property(s => s.Name).IsRequired().HasMaxLength(150);
         builder.Property(s => s.Description).HasMaxLength(1000);
         builder.Property(s => s.BasePrice).HasPrecision(18, 2);
+        builder.Property(s => s.CustomPlatformFee).HasPrecision(18, 2);
+        builder.Property(s => s.CustomCommissionRate).HasPrecision(5, 4);
         builder.Property(s => s.ImageUrl).HasMaxLength(500);
 
         builder.HasOne(s => s.Category)

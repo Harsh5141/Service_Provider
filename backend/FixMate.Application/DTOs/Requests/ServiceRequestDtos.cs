@@ -45,6 +45,17 @@ public class ServiceRequestDto
     public string ProblemDescription { get; set; } = string.Empty;
     public decimal EstimatedCost { get; set; }
     public decimal? FinalCost { get; set; }
+
+    // FixMate Service Charge & Financial Breakdown
+    public decimal ServicePrice { get; set; }
+    public decimal ServiceChargeRate { get; set; }
+    public decimal ServiceChargeAmount { get; set; }
+    public decimal CommissionRate { get; set; }
+    public decimal CommissionAmount { get; set; }
+    public decimal ProviderEarnings { get; set; }
+    public string PayoutStatus { get; set; } = "Pending";
+    public DateTime? PayoutDate { get; set; }
+
     public string? CancellationReason { get; set; }
 
     public DateTime CreatedAt { get; set; }
@@ -65,6 +76,8 @@ public class CreateServiceRequestDto
     public string PreferredTimeSlot { get; set; } = "Morning (9 AM - 12 PM)";
     public string ProblemDescription { get; set; } = string.Empty;
     public decimal EstimatedCost { get; set; }
+    public string? PaymentMethod { get; set; } = "Online";
+    public string? RazorpayPaymentId { get; set; }
 }
 
 public class UpdateRequestStatusDto

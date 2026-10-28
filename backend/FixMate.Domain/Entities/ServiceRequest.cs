@@ -28,6 +28,16 @@ public class ServiceRequest : SoftDeletableEntity
     public decimal ExtraCharges { get; set; } = 0.00m;
     public decimal DiscountAmount { get; set; } = 0.00m;
     public decimal TotalAmount { get; set; }
+
+    // Financial snapshot captured at time of booking / completion
+    public decimal ServiceChargeRate { get; set; } = 0.10m; // FixMate Service Charge percentage (e.g. 0.10 = 10%)
+    public decimal PlatformFee { get; set; } = 0.00m; // FixMate Service Charge amount
+    public decimal CommissionRate { get; set; } = 0.15m;
+    public decimal CommissionAmount { get; set; } = 0.00m;
+    public decimal ProviderEarnings { get; set; } = 0.00m;
+    public string PayoutStatus { get; set; } = "Pending"; // "Pending", "Processed", "Paid"
+    public DateTime? PayoutDate { get; set; }
+
     public DateTime? AssignedAt { get; set; }
     public decimal? DistanceKm { get; set; }
 

@@ -342,6 +342,17 @@ CREATE TABLE [dbo].[ServiceHistory] (
     CONSTRAINT [FK_ServiceHistory_Appliances_ApplianceId] FOREIGN KEY ([ApplianceId]) REFERENCES [Appliances] ([Id]) ON DELETE CASCADE,
     CONSTRAINT [FK_ServiceHistory_ServiceRequests_ServiceRequestId] FOREIGN KEY ([ServiceRequestId]) REFERENCES [ServiceRequests] ([Id]) ON DELETE SET NULL
 );
+
+IF OBJECT_ID(N'[dbo].[PlatformSettings]', N'U') IS NULL
+CREATE TABLE [dbo].[PlatformSettings] (
+    [Id] int NOT NULL IDENTITY PRIMARY KEY,
+    [Key] nvarchar(100) NOT NULL,
+    [Value] nvarchar(500) NOT NULL,
+    [Description] nvarchar(500) NOT NULL,
+    [DataType] nvarchar(50) NOT NULL DEFAULT N'string',
+    [CreatedAt] datetime2 NOT NULL,
+    [UpdatedAt] datetime2 NOT NULL
+);
 ";
         await db.Database.ExecuteSqlRawAsync(tableCreationSql);
 
@@ -409,6 +420,34 @@ IF COL_LENGTH(N'[dbo].[ServiceRequests]', N'CancelledAt') IS NULL
 IF COL_LENGTH(N'[dbo].[ServiceRequests]', N'CancelledByUserId') IS NULL
     ALTER TABLE [dbo].[ServiceRequests] ADD [CancelledByUserId] int NULL;
 
+IF COL_LENGTH(N'[dbo].[ServiceRequests]', N'PlatformFee') IS NULL
+    ALTER TABLE [dbo].[ServiceRequests] ADD [PlatformFee] decimal(18,2) NOT NULL DEFAULT 0.00;
+
+IF COL_LENGTH(N'[dbo].[ServiceRequests]', N'ServiceChargeRate') IS NULL
+    ALTER TABLE [dbo].[ServiceRequests] ADD [ServiceChargeRate] decimal(5,4) NOT NULL DEFAULT 0.10;
+
+IF COL_LENGTH(N'[dbo].[ServiceRequests]', N'CommissionRate') IS NULL
+    ALTER TABLE [dbo].[ServiceRequests] ADD [CommissionRate] decimal(5,4) NOT NULL DEFAULT 0.15;
+
+IF COL_LENGTH(N'[dbo].[ServiceRequests]', N'CommissionAmount') IS NULL
+    ALTER TABLE [dbo].[ServiceRequests] ADD [CommissionAmount] decimal(18,2) NOT NULL DEFAULT 0.00;
+
+IF COL_LENGTH(N'[dbo].[ServiceRequests]', N'ProviderEarnings') IS NULL
+    ALTER TABLE [dbo].[ServiceRequests] ADD [ProviderEarnings] decimal(18,2) NOT NULL DEFAULT 0.00;
+
+IF COL_LENGTH(N'[dbo].[ServiceRequests]', N'PayoutStatus') IS NULL
+    ALTER TABLE [dbo].[ServiceRequests] ADD [PayoutStatus] nvarchar(50) NOT NULL DEFAULT N'Pending';
+
+IF COL_LENGTH(N'[dbo].[ServiceRequests]', N'PayoutDate') IS NULL
+    ALTER TABLE [dbo].[ServiceRequests] ADD [PayoutDate] datetime2 NULL;
+
+-- Services custom fee & commission overrides
+IF COL_LENGTH(N'[dbo].[Services]', N'CustomPlatformFee') IS NULL
+    ALTER TABLE [dbo].[Services] ADD [CustomPlatformFee] decimal(18,2) NULL;
+
+IF COL_LENGTH(N'[dbo].[Services]', N'CustomCommissionRate') IS NULL
+    ALTER TABLE [dbo].[Services] ADD [CustomCommissionRate] decimal(5,4) NULL;
+
 -- ProviderProfiles column alignment
 IF COL_LENGTH(N'[dbo].[ProviderProfiles]', N'ServiceRadiusKm') IS NULL
     ALTER TABLE [dbo].[ProviderProfiles] ADD [ServiceRadiusKm] int NOT NULL DEFAULT 15;
@@ -442,5 +481,13 @@ IF COL_LENGTH(N'[dbo].[ProviderDocuments]', N'VerifiedAt') IS NULL
         await db.Database.ExecuteSqlRawAsync(
             @"IF NOT EXISTS (SELECT 1 FROM [__EFMigrationsHistory] WHERE [MigrationId] = '20260930092240_InitialSchema')
               INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260930092240_InitialSchema', '9.0.0');");
+
+        // 4. Ensure all existing bookings have a corresponding Payments ledger entry
+        await db.Database.ExecuteSqlRawAsync(
+            @"INSERT INTO [Payments] ([RequestId], [Amount], [PlatformFee], [ProviderPayout], [Method], [Status], [RazorpayOrderId], [RazorpayPaymentId], [PaidAt], [CreatedAt], [UpdatedAt])
+              SELECT s.[Id], s.[TotalAmount], s.[PlatformFee], s.[ProviderEarnings], 1, 3, CONCAT('order_sim_', s.[Id]), CONCAT('pay_sim_', s.[Id]), s.[CreatedAt], s.[CreatedAt], s.[UpdatedAt]
+              FROM [ServiceRequests] s
+              LEFT JOIN [Payments] p ON s.[Id] = p.[RequestId]
+              WHERE p.[Id] IS NULL;");
     }
 }

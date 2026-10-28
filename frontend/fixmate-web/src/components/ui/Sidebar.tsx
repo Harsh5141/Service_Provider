@@ -19,7 +19,7 @@ const navConfig: Record<Role, { label: string; to: string; icon: React.ReactNode
   Provider: [
     { label: 'Dashboard', to: '/provider/dashboard', icon: <LayoutDashboard size={18} /> },
     { label: 'Jobs', to: '/provider/jobs', icon: <Wrench size={18} /> },
-    { label: 'Earnings', to: '/provider/earnings', icon: <DollarSign size={18} /> },
+    { label: 'My Earnings / History', to: '/provider/earnings', icon: <DollarSign size={18} /> },
     { label: 'Profile', to: '/provider/profile', icon: <User size={18} /> },
   ],
   Admin: [
@@ -28,7 +28,7 @@ const navConfig: Record<Role, { label: string; to: string; icon: React.ReactNode
     { label: 'Providers', to: '/admin/providers', icon: <ShieldCheck size={18} /> },
     { label: 'Requests', to: '/admin/requests', icon: <ListChecks size={18} /> },
     { label: 'Services', to: '/admin/services', icon: <Settings size={18} /> },
-    { label: 'Payments', to: '/admin/payments', icon: <DollarSign size={18} /> },
+    { label: 'Payment History', to: '/admin/payments', icon: <DollarSign size={18} /> },
     { label: 'Reviews', to: '/admin/reviews', icon: <Star size={18} /> },
     { label: 'Complaints', to: '/admin/complaints', icon: <AlertCircle size={18} /> },
   ],

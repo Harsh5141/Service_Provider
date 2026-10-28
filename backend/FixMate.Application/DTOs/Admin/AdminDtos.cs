@@ -10,11 +10,30 @@ public class AdminDashboardStatsDto
     public int ActiveRequests { get; set; }
     public int CompletedRequests { get; set; }
     public decimal TotalRevenue { get; set; }
+    public decimal TotalPlatformFeeRevenue { get; set; }
     public decimal TotalCommissionEarned { get; set; }
+    public decimal TotalFixMateRevenue { get; set; }
+    public decimal TotalProviderEarnings { get; set; }
+    public decimal TotalRefunded { get; set; }
+    public decimal PendingPayouts { get; set; }
     public int PendingProviderApprovals { get; set; }
     public int OpenComplaints { get; set; }
     public List<ServiceRequestDto> RecentRequests { get; set; } = new();
     public List<ProviderSummaryDto> PendingProviders { get; set; } = new();
+}
+
+public class PlatformSettingDto
+{
+    public int Id { get; set; }
+    public string Key { get; set; } = string.Empty;
+    public string Value { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string DataType { get; set; } = "string";
+}
+
+public class UpdateSettingDto
+{
+    public string Value { get; set; } = string.Empty;
 }
 
 public class ProviderSummaryDto

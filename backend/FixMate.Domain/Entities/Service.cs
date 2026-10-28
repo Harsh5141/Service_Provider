@@ -14,6 +14,9 @@ public class Service : SoftDeletableEntity
     public bool IsActive { get; set; } = true;
     public string? ImageUrl { get; set; }
 
+    public decimal? CustomPlatformFee { get; set; }
+    public decimal? CustomCommissionRate { get; set; }
+
     public ICollection<ServiceRequest> ServiceRequests { get; set; } = new List<ServiceRequest>();
     public ICollection<ProviderSkill> ProviderSkills { get; set; } = new List<ProviderSkill>();
 }

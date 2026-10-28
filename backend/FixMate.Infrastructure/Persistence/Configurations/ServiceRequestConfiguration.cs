@@ -18,6 +18,12 @@ public class ServiceRequestConfiguration : IEntityTypeConfiguration<ServiceReque
         builder.Property(r => r.ExtraCharges).HasPrecision(18, 2);
         builder.Property(r => r.DiscountAmount).HasPrecision(18, 2);
         builder.Property(r => r.TotalAmount).HasPrecision(18, 2);
+        builder.Property(r => r.PlatformFee).HasPrecision(18, 2);
+        builder.Property(r => r.ServiceChargeRate).HasPrecision(5, 4);
+        builder.Property(r => r.CommissionRate).HasPrecision(5, 4);
+        builder.Property(r => r.CommissionAmount).HasPrecision(18, 2);
+        builder.Property(r => r.ProviderEarnings).HasPrecision(18, 2);
+        builder.Property(r => r.PayoutStatus).HasMaxLength(50);
         builder.Property(r => r.DistanceKm).HasPrecision(9, 2);
 
         builder.Property(r => r.RowVersion).IsRowVersion();

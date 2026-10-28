@@ -22,6 +22,35 @@ public class AppDbSeeder
     {
         var defaultPasswordHash = _passwordService.HashPassword("Password123!");
 
+        // ── 0. Seed Default Platform Settings ─────────────────────────────────────
+        var defaultSettings = new (string Key, string Value, string Description, string DataType)[]
+        {
+            ("ServiceChargeEnabled", "true", "Whether FixMate Service Charge is enabled globally", "boolean"),
+            ("ServiceChargePercentage", "10", "FixMate Service Charge percentage applied to customer service price (e.g. 10 = 10%)", "decimal"),
+            ("ServiceChargeType", "Percentage", "Calculation mode for FixMate Service Charge: 'Percentage' or 'Fixed'", "string"),
+            ("GlobalPlatformFee", "49.00", "Legacy fixed platform fee (in INR)", "decimal"),
+            ("GlobalCommissionRate", "0.15", "Platform commission rate deducted from service earnings (e.g. 0.15 = 15%)", "decimal"),
+            ("PlatformFeeEnabled", "true", "Whether platform fee is enabled globally", "boolean")
+        };
+
+        foreach (var (key, val, desc, dType) in defaultSettings)
+        {
+            var setting = await _context.PlatformSettings.FirstOrDefaultAsync(s => s.Key == key);
+            if (setting == null)
+            {
+                _context.PlatformSettings.Add(new PlatformSetting
+                {
+                    Key = key,
+                    Value = val,
+                    Description = desc,
+                    DataType = dType,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                });
+            }
+        }
+        await _context.SaveChangesAsync();
+
         // ── 0. Clean Up Old Demo Providers ───────────────────────────────────────
         var oldProviderEmails = new[]
         {

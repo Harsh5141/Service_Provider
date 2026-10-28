@@ -32,11 +32,29 @@ public class AdminController : ControllerBase
         var pendingProvidersCount = await _context.ProviderProfiles.CountAsync(p => p.Status == ProviderStatus.PendingApproval);
         var openComplaintsCount = await _context.Complaints.CountAsync(c => c.Status == ComplaintStatus.Open || c.Status == ComplaintStatus.InReview);
 
-        var totalRevenue = await _context.Payments
+        // Real financial metrics from Payment and ServiceRequest tables
+        var completedPayments = await _context.Payments
             .Where(p => p.Status == PaymentStatus.Completed)
-            .SumAsync(p => (decimal?)p.Amount) ?? 154200.00m;
+            .ToListAsync();
 
-        var totalCommission = totalRevenue * 0.15m;
+        var totalRevenue = completedPayments.Sum(p => p.Amount);
+        var totalPlatformFeeRevenue = completedPayments.Sum(p => p.PlatformFee);
+        var totalProviderEarnings = completedPayments.Sum(p => p.ProviderPayout);
+
+        var totalCommissionEarned = await _context.ServiceRequests
+            .Where(r => r.Status == RequestStatus.Completed || r.Status == RequestStatus.Paid || r.Status == RequestStatus.Reviewed)
+            .SumAsync(r => (decimal?)r.CommissionAmount) ?? 0m;
+
+        var totalFixMateRevenue = totalPlatformFeeRevenue + totalCommissionEarned;
+
+        var totalRefunded = await _context.Refunds
+            .Where(r => r.Status == "Processed")
+            .SumAsync(r => (decimal?)r.Amount) ?? 0m;
+
+        // Pending payouts for providers on completed jobs
+        var pendingPayouts = await _context.Payments
+            .Where(p => p.Status == PaymentStatus.Completed)
+            .SumAsync(p => (decimal?)p.ProviderPayout) ?? 0m;
 
         var recent = await _context.ServiceRequests
             .AsNoTracking()
@@ -100,12 +118,17 @@ public class AdminController : ControllerBase
 
         var dto = new AdminDashboardStatsDto
         {
-            TotalCustomers = totalCustomers > 0 ? totalCustomers : 1420,
-            TotalProviders = totalProviders > 0 ? totalProviders : 86,
-            ActiveRequests = activeRequests > 0 ? activeRequests : 34,
-            CompletedRequests = completedRequests > 0 ? completedRequests : 1290,
+            TotalCustomers = totalCustomers,
+            TotalProviders = totalProviders,
+            ActiveRequests = activeRequests,
+            CompletedRequests = completedRequests,
             TotalRevenue = totalRevenue,
-            TotalCommissionEarned = totalCommission,
+            TotalPlatformFeeRevenue = totalPlatformFeeRevenue,
+            TotalCommissionEarned = totalCommissionEarned,
+            TotalFixMateRevenue = totalFixMateRevenue,
+            TotalProviderEarnings = totalProviderEarnings,
+            TotalRefunded = totalRefunded,
+            PendingPayouts = pendingPayouts,
             PendingProviderApprovals = pendingProvidersCount,
             OpenComplaints = openComplaintsCount,
             RecentRequests = recent,
@@ -113,6 +136,51 @@ public class AdminController : ControllerBase
         };
 
         return Ok(ApiResponse<AdminDashboardStatsDto>.Ok(dto, "Admin dashboard stats loaded"));
+    }
+
+    [HttpGet("settings")]
+    public async Task<ActionResult<ApiResponse<List<PlatformSettingDto>>>> GetSettings()
+    {
+        var settings = await _context.PlatformSettings
+            .AsNoTracking()
+            .Select(s => new PlatformSettingDto
+            {
+                Id = s.Id,
+                Key = s.Key,
+                Value = s.Value,
+                Description = s.Description,
+                DataType = s.DataType
+            })
+            .ToListAsync();
+
+        return Ok(ApiResponse<List<PlatformSettingDto>>.Ok(settings, "Platform settings loaded"));
+    }
+
+    [HttpPut("settings/{key}")]
+    public async Task<ActionResult<ApiResponse<bool>>> UpdateSetting(string key, [FromBody] UpdateSettingDto dto)
+    {
+        var setting = await _context.PlatformSettings.FirstOrDefaultAsync(s => s.Key == key);
+        if (setting == null)
+        {
+            setting = new Domain.Entities.PlatformSetting
+            {
+                Key = key,
+                Value = dto.Value,
+                Description = "Custom platform parameter",
+                DataType = "string",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            _context.PlatformSettings.Add(setting);
+        }
+        else
+        {
+            setting.Value = dto.Value;
+            setting.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await _context.SaveChangesAsync();
+        return Ok(ApiResponse<bool>.Ok(true, $"Platform setting '{key}' updated successfully."));
     }
 
     [HttpGet("providers")]
