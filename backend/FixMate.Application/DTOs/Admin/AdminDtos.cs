@@ -18,8 +18,15 @@ public class AdminDashboardStatsDto
     public decimal PendingPayouts { get; set; }
     public int PendingProviderApprovals { get; set; }
     public int OpenComplaints { get; set; }
+    public List<RevenueTrendDto> RevenueTrend { get; set; } = new();
     public List<ServiceRequestDto> RecentRequests { get; set; } = new();
     public List<ProviderSummaryDto> PendingProviders { get; set; } = new();
+}
+
+public class RevenueTrendDto
+{
+    public string Month { get; set; } = string.Empty;
+    public decimal Revenue { get; set; }
 }
 
 public class PlatformSettingDto

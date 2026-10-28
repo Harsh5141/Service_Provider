@@ -1036,6 +1036,85 @@ public class AppDbSeeder
             Console.WriteLine("[Seeder] Successfully seeded dynamic service bookings, payments, reviews, and appliances.");
         }
 
+        // ── Ensure Complaints and Reviews exist in database ───────────────────────
+        if (!await _context.Complaints.AnyAsync())
+        {
+            var req = await _context.ServiceRequests.Include(r => r.Customer).FirstOrDefaultAsync();
+            var customer = await _context.Users.FirstOrDefaultAsync(u => u.Role == UserRole.User);
+            if (req != null && customer != null)
+            {
+                _context.Complaints.AddRange(
+                    new Complaint
+                    {
+                        RequestId = req.Id,
+                        CustomerId = customer.Id,
+                        Title = "Technician arrived 35 minutes late",
+                        Description = "Technician arrived 35 minutes late due to traffic, requested 10% coupon compensation.",
+                        Status = ComplaintStatus.Open,
+                        CreatedAt = DateTime.UtcNow.AddDays(-2),
+                        UpdatedAt = DateTime.UtcNow.AddDays(-2)
+                    },
+                    new Complaint
+                    {
+                        RequestId = req.Id,
+                        CustomerId = customer.Id,
+                        Title = "Itemized invoice clarification",
+                        Description = "Need copy of itemized invoice with technician license registration number for landlord insurance.",
+                        Status = ComplaintStatus.InReview,
+                        CreatedAt = DateTime.UtcNow.AddDays(-3),
+                        UpdatedAt = DateTime.UtcNow.AddDays(-3)
+                    }
+                );
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        if (!await _context.Reviews.AnyAsync())
+        {
+            var reqs = await _context.ServiceRequests.Include(r => r.Customer).Include(r => r.ProviderProfile).Take(3).ToListAsync();
+            var customer = await _context.Users.FirstOrDefaultAsync(u => u.Role == UserRole.User);
+            var provider = await _context.ProviderProfiles.FirstOrDefaultAsync();
+            if (customer != null && provider != null)
+            {
+                _context.Reviews.AddRange(
+                    new Review
+                    {
+                        RequestId = reqs.Count > 0 ? reqs[0].Id : 1,
+                        CustomerId = customer.Id,
+                        ProviderProfileId = reqs.Count > 0 && reqs[0].ProviderProfileId.HasValue ? reqs[0].ProviderProfileId.Value : provider.Id,
+                        Rating = 5,
+                        Comment = "Exceptional work on the AC jet wash! The cooling is back to ice cold and he was extremely polite.",
+                        IsVisible = true,
+                        CreatedAt = DateTime.UtcNow.AddDays(-2),
+                        UpdatedAt = DateTime.UtcNow.AddDays(-2)
+                    },
+                    new Review
+                    {
+                        RequestId = reqs.Count > 1 ? reqs[1].Id : (reqs.Count > 0 ? reqs[0].Id : 1),
+                        CustomerId = customer.Id,
+                        ProviderProfileId = reqs.Count > 1 && reqs[1].ProviderProfileId.HasValue ? reqs[1].ProviderProfileId.Value : provider.Id,
+                        Rating = 5,
+                        Comment = "Prompt arrival within 20 mins. Fixed the kitchen sink blockage quickly without any mess.",
+                        IsVisible = true,
+                        CreatedAt = DateTime.UtcNow.AddDays(-3),
+                        UpdatedAt = DateTime.UtcNow.AddDays(-3)
+                    },
+                    new Review
+                    {
+                        RequestId = reqs.Count > 2 ? reqs[2].Id : (reqs.Count > 0 ? reqs[0].Id : 1),
+                        CustomerId = customer.Id,
+                        ProviderProfileId = reqs.Count > 2 && reqs[2].ProviderProfileId.HasValue ? reqs[2].ProviderProfileId.Value : provider.Id,
+                        Rating = 4,
+                        Comment = "Good job installing the ceiling fan. Fixed the regulator balance nicely.",
+                        IsVisible = true,
+                        CreatedAt = DateTime.UtcNow.AddDays(-5),
+                        UpdatedAt = DateTime.UtcNow.AddDays(-5)
+                    }
+                );
+                await _context.SaveChangesAsync();
+            }
+        }
+
         await _context.SaveChangesAsync();
     }
 }

@@ -24,6 +24,7 @@ interface AdminStats {
   pendingPayouts: number
   pendingProviderApprovals: number
   openComplaints: number
+  revenueTrend?: Array<{ month: string; revenue: number }>
   recentRequests: any[]
   pendingProviders: any[]
 }
@@ -43,6 +44,7 @@ export default function AdminDashboard() {
     pendingPayouts: 0,
     pendingProviderApprovals: 0,
     openComplaints: 0,
+    revenueTrend: [],
     recentRequests: [],
     pendingProviders: []
   })
@@ -130,13 +132,13 @@ export default function AdminDashboard() {
     }
   }
 
-  // Generate dynamic chart data based on real gross revenue
-  const revenueTrend = [
-    { month: 'W1', revenue: Math.round(stats.totalRevenue * 0.15) },
-    { month: 'W2', revenue: Math.round(stats.totalRevenue * 0.25) },
-    { month: 'W3', revenue: Math.round(stats.totalRevenue * 0.28) },
-    { month: 'Current', revenue: Math.round(stats.totalRevenue) }
-  ]
+  // Use dynamic chart data loaded directly from database Payments
+  const revenueTrend = (stats.revenueTrend && stats.revenueTrend.length > 0)
+    ? stats.revenueTrend
+    : [
+        { month: 'Initial', revenue: 0 },
+        { month: 'Current', revenue: Math.round(stats.totalRevenue) }
+      ]
 
   return (
     <div className="space-y-8 pb-16">
